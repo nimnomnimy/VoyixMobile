@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "VoyixMobile",
+    "slug": "voyix-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#CC0000"
+      }
+    },
+    "web": {},
+    "plugins": []
+  }
+}

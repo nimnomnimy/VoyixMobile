@@ -1,0 +1,15 @@
+{
+  "name": "voyix-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VoyixMobile — Kmart Mobile Point of Sale powered by NCR Voyix BSP",
+  "scripts": {
+    "start": "cd mobile && npm start"
+  },
+  "devDependencies": {
+    "localtunnel": "^2.0.2"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0"
+  }
+}

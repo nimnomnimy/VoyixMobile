@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
+import { showAlert } from '../lib/webAlert';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 
 export default function LoginScreen() {
@@ -19,17 +19,17 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!staffId || !pin) {
-      Alert.alert('Error', 'Please enter staff ID and PIN');
+      showAlert('Error', 'Please enter staff ID and PIN');
       return;
     }
     if (pin.length < 4) {
-      Alert.alert('Error', 'PIN must be at least 4 digits');
+      showAlert('Error', 'PIN must be at least 4 digits');
       return;
     }
     try {
       await login(staffId, pin);
     } catch (error) {
-      Alert.alert('Login Failed', error instanceof Error ? error.message : 'Unknown error');
+      showAlert('Login Failed', error instanceof Error ? error.message : 'Unknown error');
     }
   };
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Image, View, Alert, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Image, View, Text, StyleSheet } from 'react-native';
+import { showAlert } from '../lib/webAlert';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -34,12 +35,12 @@ function MainTabs() {
   const teamMember = useLoyaltyStore((state) => state.teamMember);
   const onepass = useLoyaltyStore((state) => state.onepass);
   const handleSessionMenu = () => {
-    Alert.alert('Session', 'Choose an option', [
+    showAlert('Session', 'Choose an option', [
       {
         text: 'Suspend Transaction',
         onPress: () => {
           if (items.length === 0) {
-            Alert.alert('Nothing to suspend', 'Add items to the cart first.');
+            showAlert('Nothing to suspend', 'Add items to the cart first.');
             return;
           }
           const id = 'SUS-' + Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -54,14 +55,14 @@ function MainTabs() {
             items: items.map((i) => ({ ...i, refundedQty: 0 })),
           });
           clearCart();
-          Alert.alert('Suspended', `Transaction ${id} has been suspended.`);
+          showAlert('Suspended', `Transaction ${id} has been suspended.`);
         },
       },
       {
         text: 'Void Transaction',
         style: 'destructive',
         onPress: () => {
-          Alert.alert(
+          showAlert(
             'Void Transaction',
             'This will clear the cart and loyalty cards. Are you sure?',
             [
@@ -85,7 +86,7 @@ function MainTabs() {
         text: 'Log Out',
         style: 'destructive',
         onPress: () => {
-          Alert.alert('Log Out', 'Are you sure you want to log out?', [
+          showAlert('Log Out', 'Are you sure you want to log out?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log Out', style: 'destructive', onPress: logout },
           ]);

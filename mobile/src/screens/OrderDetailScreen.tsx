@@ -5,11 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Image,
   ImageStyle,
   ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../lib/webAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore, OrderLineItem } from '../store/useOrderStore';
@@ -110,7 +110,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const handleResume = () => {
     if (!order) return;
     if (cartItems.length > 0) {
-      Alert.alert(
+      showAlert(
         'Active Transaction',
         'You have items in your cart. Resuming will replace the current cart.',
         [
@@ -135,7 +135,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   };
 
   const handleCancelSuspended = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Transaction',
       `Cancel suspended transaction ${order.id}? This cannot be undone.`,
       [
@@ -151,7 +151,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
 
   const handleStartRefund = () => {
     if (refundableItems.length === 0) {
-      Alert.alert('No items to refund', 'All items have already been fully refunded.');
+      showAlert('No items to refund', 'All items have already been fully refunded.');
       return;
     }
     // initialise all refundable items to 0
@@ -163,7 +163,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
 
   const handleConfirmRefund = () => {
     if (!anySelected) {
-      Alert.alert('Nothing selected', 'Set a return quantity on at least one item.');
+      showAlert('Nothing selected', 'Set a return quantity on at least one item.');
       return;
     }
     const selections = Object.entries(refundQtys)
@@ -175,7 +175,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
       ? 'No refund due (promotions still apply to remaining items)'
       : `Refund $${refundAmount.toFixed(2)} to card`;
 
-    Alert.alert(
+    showAlert(
       'Confirm Refund',
       `${refundLabel}\n${lineCount} line(s) being returned.`,
       [
@@ -216,10 +216,10 @@ export default function OrderDetailScreen({ route, navigation }: any) {
       const msg = refundAmount === 0
         ? 'Items returned. No refund due — promotions still apply to remaining items.'
         : `$${refundAmount.toFixed(2)} refunded to card.`;
-      Alert.alert('Return processed', msg);
+      showAlert('Return processed', msg);
     } catch (error) {
       const msg = error instanceof BffError ? error.message : 'Refund failed. Please try again.';
-      Alert.alert('Refund Failed', msg);
+      showAlert('Refund Failed', msg);
     } finally {
       setRefundProcessing(false);
     }

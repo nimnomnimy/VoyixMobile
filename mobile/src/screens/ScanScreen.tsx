@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Modal,
   Image,
   ImageStyle,
@@ -14,6 +13,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { showAlert } from '../lib/webAlert';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore } from '../store/useCartStore';
@@ -76,13 +76,13 @@ export default function ScanScreen() {
     toastSlide.setValue(16);
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.timing(toastSlide,   { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(toastSlide,   { toValue: 0, duration: 220, useNativeDriver: Platform.OS !== 'web' }),
       ]),
       Animated.delay(2000),
       Animated.parallel([
-        Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-        Animated.timing(toastSlide,   { toValue: 16, duration: 250, useNativeDriver: true }),
+        Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(toastSlide,   { toValue: 16, duration: 250, useNativeDriver: Platform.OS !== 'web' }),
       ]),
     ]).start();
     toastTimer.current = setTimeout(() => { setToastName(''); setToastVariant(''); }, 2600);
@@ -129,8 +129,8 @@ export default function ScanScreen() {
 
   const handleAttributeConfirm = () => {
     if (!attributeItem) return;
-    if (!selectedSize) { Alert.alert('Select a size'); return; }
-    if (!selectedColor) { Alert.alert('Select a colour'); return; }
+    if (!selectedSize) { showAlert('Select a size'); return; }
+    if (!selectedColor) { showAlert('Select a colour'); return; }
     setAttributeItem(null);
     commitAdd(attributeItem, selectedSize, selectedColor);
   };
@@ -139,7 +139,7 @@ export default function ScanScreen() {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        Alert.alert('Permission required', 'Camera access is needed to scan barcodes.');
+        showAlert('Permission required', 'Camera access is needed to scan barcodes.');
         return;
       }
     }
@@ -167,7 +167,7 @@ export default function ScanScreen() {
     if (found) {
       handleAddPress(found);
     } else {
-      Alert.alert('Not found', `Code "${code}" not in catalog`);
+      showAlert('Not found', `Code "${code}" not in catalog`);
       onNotFound?.();
     }
   };
@@ -280,7 +280,7 @@ export default function ScanScreen() {
                   style={[styles.addButton, outOfStock && styles.addButtonDisabled]}
                   onPress={() => {
                     if (outOfStock) {
-                      Alert.alert('Out of Stock', `${item.name} is out of stock. Add anyway?`, [
+                      showAlert('Out of Stock', `${item.name} is out of stock. Add anyway?`, [
                         { text: 'Cancel', style: 'cancel' },
                         { text: 'Add Anyway', onPress: () => handleAddPress(item) },
                       ]);

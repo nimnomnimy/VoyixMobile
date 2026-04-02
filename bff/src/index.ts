@@ -21,7 +21,7 @@ const app = Fastify({
   },
 });
 
-await app.register(cors, { origin: true });
+await app.register(cors, { origin: config.allowedOrigins });
 await app.register(jwt, { secret: config.jwtSecret });
 
 // Health check

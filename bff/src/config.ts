@@ -10,6 +10,10 @@ export const config = {
   port: parseInt(process.env.BFF_PORT ?? '3001'),
   host: process.env.BFF_HOST ?? '0.0.0.0',
   jwtSecret: process.env.JWT_SECRET ?? 'change-me-in-production',
+  // Comma-separated list of allowed origins. Unset = allow all (dev mode).
+  allowedOrigins: process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : true as const,
   bsp: {
     gateway: process.env.BSP_API_GATEWAY ?? 'https://api.ncr.com',
     organization: require_env('BSP_ORGANIZATION'),

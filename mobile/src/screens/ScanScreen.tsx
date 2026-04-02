@@ -12,6 +12,7 @@ import {
   ImageStyle,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -214,9 +215,11 @@ export default function ScanScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress}>
-          <Text style={styles.cameraButtonText}>📷</Text>
-        </TouchableOpacity>
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress}>
+            <Text style={styles.cameraButtonText}>📷</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.keypadButton} onPress={() => { setKeypadValue(''); setKeypadVisible(true); }}>
           <Text style={styles.cameraButtonText}>🔢</Text>
         </TouchableOpacity>
@@ -396,8 +399,8 @@ export default function ScanScreen() {
         </View>
       </Modal>
 
-      {/* Barcode scanner modal */}
-      <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
+      {/* Barcode scanner modal — native only */}
+      <Modal visible={Platform.OS !== 'web' && scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
         <View style={styles.scannerContainer}>
           <CameraView
             style={styles.camera}

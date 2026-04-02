@@ -13,7 +13,16 @@
         "backgroundColor": "#CC0000"
       }
     },
-    "web": {},
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/kmart-logo.png",
+      "name": "VoyixMobile",
+      "shortName": "Voyix POS",
+      "description": "Kmart mPOS — powered by NCR Voyix",
+      "themeColor": "#CC0000",
+      "backgroundColor": "#ffffff",
+      "lang": "en"
+    },
     "plugins": []
   }
 }

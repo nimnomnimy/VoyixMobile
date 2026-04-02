@@ -2,7 +2,7 @@
  * Shared BFF HTTP client.
  * Automatically attaches the auth JWT to every request.
  */
-import * as SecureStore from 'expo-secure-store';
+import { storage } from './storage';
 
 const BFF = process.env.EXPO_PUBLIC_BFF_URL || 'http://localhost:8765';
 
@@ -14,7 +14,7 @@ export class BffError extends Error {
 }
 
 async function baseHeaders(hasBody: boolean, extra?: Record<string, string>): Promise<Record<string, string>> {
-  const token = await SecureStore.getItemAsync('authToken');
+  const token = await storage.getItem('authToken');
   return {
     ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

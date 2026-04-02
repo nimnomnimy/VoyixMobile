@@ -15,6 +15,7 @@
     },
     "web": {
       "bundler": "metro",
+      "output": "single",
       "favicon": "./assets/kmart-logo.png",
       "name": "VoyixMobile",
       "shortName": "Voyix POS",

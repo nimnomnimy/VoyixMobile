@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Typography } from '../theme';
+import { storage } from '../lib/storage';
+import { showAlert } from '../lib/webAlert';
 
 const BFF = process.env.EXPO_PUBLIC_BFF_URL || 'http://localhost:8765';
 
@@ -129,9 +130,7 @@ export default function ApiLogScreen({ navigation }: any) {
 
   const fetchLog = useCallback(async () => {
     try {
-      const token = await import('expo-secure-store').then((m) =>
-        m.getItemAsync('authToken')
-      );
+      const token = await storage.getItem('authToken');
       const res = await fetch(`${BFF}/api/log`, {
         headers: {
           'Bypass-Tunnel-Reminder': 'true',
@@ -154,7 +153,7 @@ export default function ApiLogScreen({ navigation }: any) {
   };
 
   const handleClear = () => {
-    Alert.alert('Clear Log', 'Remove all API log entries?', [
+    showAlert('Clear Log', 'Remove all API log entries?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',

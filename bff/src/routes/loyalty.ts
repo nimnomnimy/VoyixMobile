@@ -36,6 +36,8 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
           `/customer/1/loyalty-accounts?loyaltyCardNumber=${encodeURIComponent(cardNumber)}&pageSize=1`
         );
 
+        app.log.info({ bspLoyaltyStatus: status, bspLoyaltyData: data }, 'BSP loyalty identify response');
+
         if (status === 200 && data) {
           const account = data.pageContent?.[0] ?? data;
           return {
@@ -46,9 +48,8 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
             cardType,
           };
         }
-      } catch {
-        // BSP loyalty unavailable — return a polite stub so the app still works
-        app.log.warn('BSP loyalty identify unavailable, returning stub');
+      } catch (err) {
+        app.log.warn({ err }, 'BSP loyalty identify unavailable, returning stub');
       }
 
       // Graceful stub when BSP doesn't support loyalty in this sandbox
@@ -101,6 +102,8 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
           body: payload,
         });
 
+        app.log.info({ bspAccrueStatus: status, bspAccrueData: data }, 'BSP loyalty accrue response');
+
         if (status < 400 && data) {
           return {
             pointsEarned: data.pointsEarned ?? Math.floor(totalAmount),
@@ -108,8 +111,8 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
             cardType,
           };
         }
-      } catch {
-        app.log.warn('BSP loyalty accrue unavailable, returning stub');
+      } catch (err) {
+        app.log.warn({ err }, 'BSP loyalty accrue unavailable, returning stub');
       }
 
       // Stub: 1 point per dollar

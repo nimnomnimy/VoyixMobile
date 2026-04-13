@@ -7,7 +7,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.kmart.voyixmobile"
+      "bundleIdentifier": "com.kmart.voyixmobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.kmart.voyixmobile",
@@ -26,6 +29,18 @@
       "backgroundColor": "#ffffff",
       "lang": "en"
     },
-    "plugins": []
+    "plugins": [],
+    "updates": {
+      "url": "https://u.expo.dev/bcc705f0-abca-424a-926a-52acdb21dd22"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bcc705f0-abca-424a-926a-52acdb21dd22"
+      }
+    },
+    "owner": "nimamoradi"
   }
 }

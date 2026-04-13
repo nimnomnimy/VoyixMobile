@@ -6,9 +6,11 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kmart.voyixmobile"
     },
     "android": {
+      "package": "com.kmart.voyixmobile",
       "adaptiveIcon": {
         "backgroundColor": "#CC0000"
       }

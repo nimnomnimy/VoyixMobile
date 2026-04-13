@@ -11,6 +11,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useCartStore } from '../store/useCartStore';
@@ -57,9 +58,9 @@ export default function CartScreen({ navigation }: any) {
   const [scanned, setScanned] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(false);
   const [keypadValue, setKeypadValue] = useState('');
-  const [loyaltyVisible, setLoyaltyVisible] = useState(false);
-  const [loyaltyType, setLoyaltyType] = useState<LoyaltyCardType>('flybuys');
-  const [loyaltyReplaced, setLoyaltyReplaced] = useState(false);
+  const [loyaltyToast, setLoyaltyToast] = useState<{ type: LoyaltyCardType; replaced: boolean } | null>(null);
+  const toastAnim = useRef(new Animated.Value(-100)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [attributeItem, setAttributeItem] = useState<CatalogItem | null>(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -135,10 +136,15 @@ export default function CartScreen({ navigation }: any) {
 
   const triggerLoyalty = (type: LoyaltyCardType, cardNumber: string) => {
     const replaced = setCard(type, cardNumber);
-    setLoyaltyType(type);
-    setLoyaltyReplaced(replaced);
-    setLoyaltyVisible(true);
-    setTimeout(() => setLoyaltyVisible(false), 3000);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setLoyaltyToast({ type, replaced });
+    toastAnim.setValue(-100);
+    Animated.spring(toastAnim, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
+    toastTimer.current = setTimeout(() => {
+      Animated.timing(toastAnim, { toValue: -100, duration: 250, useNativeDriver: true }).start(() =>
+        setLoyaltyToast(null)
+      );
+    }, 2500);
   };
 
   const resolveCode = (code: string, onNotFound?: () => void) => {
@@ -389,26 +395,21 @@ export default function CartScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* Loyalty notification modal */}
-      <Modal visible={loyaltyVisible} transparent animationType="fade" onRequestClose={() => setLoyaltyVisible(false)}>
-        <View style={styles.loyaltyOverlay}>
-          <View style={styles.loyaltyNotifCard}>
-            {loyaltyType === 'flybuys' ? (
-              <Image
-                source={require('../../assets/flybuys-logo.png')}
-                style={styles.flybuysLogoLarge as ImageStyle}
-              />
-            ) : (
-              <View style={[styles.cardTypeBadge, { backgroundColor: loyaltyType === 'teamMember' ? '#FF6B00' : '#6B21A8' }]}>
-                <Text style={styles.cardTypeBadgeText}>{CARD_LABEL[loyaltyType]}</Text>
-              </View>
-            )}
-            <Text style={styles.loyaltyMessage}>
-              {CARD_LABEL[loyaltyType]} card {loyaltyReplaced ? 'replaced' : 'added'}
-            </Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Loyalty toast notification */}
+      {loyaltyToast && (
+        <Animated.View style={[styles.loyaltyToast, { transform: [{ translateY: toastAnim }] }]}>
+          {loyaltyToast.type === 'flybuys' ? (
+            <Image source={require('../../assets/flybuys-logo.png')} style={styles.toastLogo as ImageStyle} />
+          ) : (
+            <View style={[styles.toastBadge, { backgroundColor: loyaltyToast.type === 'teamMember' ? '#FF6B00' : '#6B21A8' }]}>
+              <Text style={styles.toastBadgeText}>{CARD_LABEL[loyaltyToast.type]}</Text>
+            </View>
+          )}
+          <Text style={styles.toastMessage}>
+            {CARD_LABEL[loyaltyToast.type]} card {loyaltyToast.replaced ? 'replaced' : 'added'} ✓
+          </Text>
+        </Animated.View>
+      )}
 
       {/* Attribute picker modal */}
       <Modal
@@ -730,29 +731,28 @@ const styles = StyleSheet.create({
   },
   checkoutButtonText: { ...Typography.button, color: Colors.background },
 
-  // Loyalty notification
-  loyaltyOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
+  // Loyalty toast
+  loyaltyToast: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1a1a2e',
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  loyaltyNotifCard: {
-    backgroundColor: '#fff',
-    borderRadius: Radius.lg,
-    padding: Spacing.xl,
-    alignItems: 'center',
-    width: 280,
-    gap: Spacing.lg,
-  },
-  flybuysLogoLarge: { width: 200, height: 60, resizeMode: 'contain' },
-  cardTypeBadge: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderRadius: Radius.md,
+    gap: Spacing.md,
+    zIndex: 999,
   },
-  cardTypeBadgeText: { color: '#fff', fontSize: 18, fontWeight: '700' as const },
-  loyaltyMessage: { fontSize: 18, fontWeight: '600' as const, color: Colors.text },
+  toastLogo: { width: 80, height: 24, resizeMode: 'contain' },
+  toastBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+  },
+  toastBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' as const },
+  toastMessage: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '600' as const },
 
   // Attribute sheet
   attrOverlay: {

@@ -106,7 +106,7 @@ function MainTabs() {
         headerLeft: () => (
           <Image
             source={require('../../assets/kmart-logo.png')}
-            style={{ width: 80, height: 28, resizeMode: 'contain', marginLeft: 12 }}
+            style={{ width: 160, height: 56, resizeMode: 'contain', marginLeft: 12 }}
           />
         ),
         headerRight: () => (

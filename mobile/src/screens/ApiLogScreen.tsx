@@ -222,7 +222,7 @@ export default function ApiLogScreen({ navigation }: any) {
                   <Text style={styles.serviceName}>{entry.service}</Text>
                   <Text style={styles.entryTime}>{formatTime(entry.timestamp)}</Text>
                 </View>
-                <Text style={styles.entryPath} numberOfLines={1}>{entry.path}</Text>
+                <Text style={styles.entryPath}>{entry.path}</Text>
                 <View style={styles.entryBottom}>
                   {entry.statusCode !== null ? (
                     <Text style={[styles.statusCode, { color: entry.ok ? Colors.success : Colors.error }]}>

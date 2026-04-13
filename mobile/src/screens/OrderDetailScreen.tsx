@@ -8,6 +8,7 @@ import {
   Image,
   ImageStyle,
   ActivityIndicator,
+  Clipboard,
 } from 'react-native';
 import { showAlert } from '../lib/webAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -342,6 +343,17 @@ export default function OrderDetailScreen({ route, navigation }: any) {
                 <Text style={styles.summaryNetLabel}>Order Total</Text>
                 <Text style={styles.summaryNetValue}>${order.total.toFixed(2)}</Text>
               </View>
+              <TouchableOpacity
+                style={styles.bspIdRow}
+                onPress={() => {
+                  Clipboard.setString(order.bspOrderId);
+                  showAlert('Copied', 'BSP Order ID copied to clipboard');
+                }}
+              >
+                <Text style={styles.bspIdLabel}>BSP Order ID</Text>
+                <Text style={styles.bspIdValue} numberOfLines={1}>{order.bspOrderId}</Text>
+                <Text style={styles.bspIdCopy}>Copy</Text>
+              </TouchableOpacity>
               {order.refundedTotal > 0 && (
                 <>
                   <View style={styles.summaryRow}>
@@ -458,6 +470,18 @@ const styles = StyleSheet.create({
   summaryNetRow: { borderTopWidth: 1, borderTopColor: Colors.border, marginTop: Spacing.sm, paddingTop: Spacing.sm },
   summaryNetLabel: { ...Typography.h3, color: Colors.text },
   summaryNetValue: { ...Typography.h3, color: Colors.primary },
+  bspIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  bspIdLabel: { fontSize: 11, color: Colors.textLight, fontWeight: '600' as const },
+  bspIdValue: { flex: 1, fontSize: 11, color: Colors.textLight, fontFamily: 'monospace' },
+  bspIdCopy: { fontSize: 11, color: Colors.primary, fontWeight: '700' as const },
 
   refundHint: {
     ...Typography.caption,

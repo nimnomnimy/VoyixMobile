@@ -1,17 +1,22 @@
 /**
- * Loyalty routes — wraps NCR Voyix Loyalty / Customer API.
+ * Loyalty routes — wraps NCR Voyix Retail Loyalty API v1.
  *
- * BSP endpoints:
- *   GET  /customer/1/loyalty-accounts?loyaltyCardNumber=xxx  — identify card
- *   POST /customer/1/loyalty-events                           — accrue points
+ * Base URL: https://api.ncrvoyix.com/ret-loyalty/v1
+ *
+ * Endpoints used:
+ *   GET /consumers/{consumerAccountNumber}   — identify member by card number
+ *   GET /points?consumerAccountNumber=xxx    — get points balance
+ *   PUT /points                              — award points after purchase
  */
 import type { FastifyInstance } from 'fastify';
-import { ncrRequest, ncrSiteRequest } from '../lib/ncrClient.js';
+import { ncrRequest } from '../lib/ncrClient.js';
+
+const LOYALTY_BASE = '/ret-loyalty/v1';
 
 export default async function loyaltyRoutes(app: FastifyInstance) {
   /**
    * POST /api/loyalty/identify
-   * Body: { cardNumber: string, cardType: 'flybuys' | 'teamMember' | 'onepass' }
+   * Body: { cardNumber: string, cardType: string }
    * Returns: { accountId, memberName, pointsBalance, tier }
    */
   app.post<{ Body: { cardNumber: string; cardType: string } }>(
@@ -28,23 +33,36 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
         },
       },
     },
-    async (req, reply) => {
+    async (req) => {
       const { cardNumber, cardType } = req.body;
 
       try {
-        const { status, data } = await ncrSiteRequest<any>(
-          `/customer/1/loyalty-accounts?loyaltyCardNumber=${encodeURIComponent(cardNumber)}&pageSize=1`
+        // 1. Look up consumer by account number (card number)
+        const { status: consumerStatus, data: consumer } = await ncrRequest<any>(
+          `${LOYALTY_BASE}/consumers/${encodeURIComponent(cardNumber)}`
         );
 
-        app.log.info({ bspLoyaltyStatus: status, bspLoyaltyData: data }, 'BSP loyalty identify response');
+        app.log.info({ consumerStatus }, 'BSP loyalty consumer lookup');
 
-        if (status === 200 && data) {
-          const account = data.pageContent?.[0] ?? data;
+        if (consumerStatus === 200 && consumer) {
+          // 2. Get their points balance
+          const { status: pointsStatus, data: pointsData } = await ncrRequest<any>(
+            `${LOYALTY_BASE}/points?consumerAccountNumber=${encodeURIComponent(cardNumber)}`
+          );
+
+          app.log.info({ pointsStatus }, 'BSP loyalty points lookup');
+
+          const pointsBalance = pointsStatus === 200
+            ? (pointsData?.totalPoints ?? pointsData?.balance ?? 0)
+            : 0;
+
           return {
-            accountId:     account.id ?? account.accountId ?? cardNumber,
-            memberName:    account.name ?? account.firstName ?? 'Member',
-            pointsBalance: account.pointsBalance ?? account.balance ?? 0,
-            tier:          account.tier ?? account.membershipLevel ?? 'Standard',
+            accountId:     cardNumber,
+            memberName:    consumer.firstName
+              ? `${consumer.firstName} ${consumer.lastName ?? ''}`.trim()
+              : (consumer.name ?? 'Loyalty Member'),
+            pointsBalance,
+            tier:          consumer.tier ?? consumer.membershipLevel ?? 'Standard',
             cardType,
           };
         }
@@ -52,7 +70,7 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
         app.log.warn({ err }, 'BSP loyalty identify unavailable, returning stub');
       }
 
-      // Graceful stub when BSP doesn't support loyalty in this sandbox
+      // Graceful stub when API is unavailable
       return {
         accountId:     cardNumber,
         memberName:    'Loyalty Member',
@@ -85,29 +103,29 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
         },
       },
     },
-    async (req, reply) => {
+    async (req) => {
       const { accountId, orderId, totalAmount, cardType } = req.body;
+      const pointsEarned = Math.floor(totalAmount);
 
       try {
         const payload = {
-          loyaltyAccountId: accountId,
+          consumerAccountNumber: accountId,
           referenceId: orderId,
-          eventType: 'Purchase',
-          purchaseAmount: totalAmount,
+          points: pointsEarned,
           transactionDate: new Date().toISOString(),
         };
 
-        const { status, data } = await ncrSiteRequest<any>('/customer/1/loyalty-events', {
-          method: 'POST',
+        const { status, data } = await ncrRequest<any>(`${LOYALTY_BASE}/points`, {
+          method: 'PUT',
           body: payload,
         });
 
-        app.log.info({ bspAccrueStatus: status, bspAccrueData: data }, 'BSP loyalty accrue response');
+        app.log.info({ status }, 'BSP loyalty accrue response');
 
-        if (status < 400 && data) {
+        if (status < 400) {
           return {
-            pointsEarned: data.pointsEarned ?? Math.floor(totalAmount),
-            newBalance:   data.newBalance ?? data.pointsBalance ?? 0,
+            pointsEarned,
+            newBalance: data?.totalPoints ?? data?.balance ?? pointsEarned,
             cardType,
           };
         }
@@ -117,8 +135,8 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
 
       // Stub: 1 point per dollar
       return {
-        pointsEarned: Math.floor(totalAmount),
-        newBalance:   Math.floor(totalAmount),
+        pointsEarned,
+        newBalance: pointsEarned,
         cardType,
         stub: true,
       };

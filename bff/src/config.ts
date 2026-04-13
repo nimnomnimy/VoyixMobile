@@ -7,7 +7,7 @@ function require_env(name: string): string {
 }
 
 export const config = {
-  // Railway injects PORT; fall back to BFF_PORT for local dev.
+  // Render injects PORT; fall back to BFF_PORT for local dev.
   port: parseInt(process.env.PORT ?? process.env.BFF_PORT ?? '8765'),
   host: process.env.BFF_HOST ?? '0.0.0.0',
   jwtSecret: process.env.JWT_SECRET ?? 'change-me-in-production',

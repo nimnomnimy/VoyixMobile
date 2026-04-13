@@ -18,6 +18,7 @@ const TDM_BASE   = '/transaction-document/transaction-documents';
 interface CheckoutBody {
   orderId: string;
   paymentType: 'Cash' | 'CreditDebit' | 'Other';
+  paymentSubType?: string;
   paymentAmount: number;
   staffId?: string;
 }
@@ -32,16 +33,18 @@ export default async function orderRoutes(app: FastifyInstance) {
           type: 'object',
           required: ['orderId', 'paymentType', 'paymentAmount'],
           properties: {
-            orderId:       { type: 'string' },
-            paymentType:   { type: 'string', enum: ['Cash', 'CreditDebit', 'Other'] },
-            paymentAmount: { type: 'number', minimum: 0 },
-            staffId:       { type: 'string' },
+            orderId:          { type: 'string' },
+            paymentType:      { type: 'string', enum: ['Cash', 'CreditDebit', 'Other'] },
+            paymentSubType:   { type: 'string' },
+            paymentAmount:    { type: 'number', minimum: 0 },
+            staffId:          { type: 'string' },
           },
         },
       },
     },
     async (req) => {
-      const { orderId, paymentType, paymentAmount, staffId = 'unknown' } = req.body;
+      const { orderId, paymentType, paymentSubType, paymentAmount, staffId = 'unknown' } = req.body;
+      const resolvedSubType = paymentSubType ?? (paymentType === 'Cash' ? 'Cash' : 'Contactless');
 
       // 1. Fetch the current order to calculate totals
       const { status: getStatus, data: order } = await ncrSiteRequest<any>(`${ORDER_BASE}/${orderId}`);
@@ -53,6 +56,7 @@ export default async function orderRoutes(app: FastifyInstance) {
         payments: [
           {
             type: paymentType,
+            subType: resolvedSubType,
             amount: paymentAmount,
             status: 'Authorized',
             payBalance: true,

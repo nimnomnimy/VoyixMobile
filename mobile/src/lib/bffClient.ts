@@ -18,6 +18,7 @@ async function baseHeaders(hasBody: boolean, extra?: Record<string, string>): Pr
   return {
     ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    'bypass-tunnel-reminder': 'true',
     ...extra,
   };
 }

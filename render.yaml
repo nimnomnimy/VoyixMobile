@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: voyix-mobile-bff
+    runtime: node
+    rootDir: bff
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BSP_API_GATEWAY
+        value: https://api.ncr.com
+      - key: BSP_ORGANIZATION
+        sync: false
+      - key: BSP_SITE_ID
+        sync: false
+      - key: BSP_SHARED_KEY
+        sync: false
+      - key: BSP_SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

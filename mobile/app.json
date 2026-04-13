@@ -4,6 +4,7 @@
     "slug": "voyix-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
@@ -15,7 +16,8 @@
     "android": {
       "package": "com.kmart.voyixmobile",
       "adaptiveIcon": {
-        "backgroundColor": "#CC0000"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
       }
     },
     "web": {

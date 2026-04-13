@@ -19,7 +19,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (staffId: string, pin: string) => {
     set({ loading: true });
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
       const BFF = process.env.EXPO_PUBLIC_BFF_URL || 'http://localhost:8765';
       const response = await fetch(`${BFF}/api/auth/login`, {
@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (e: any) {
       clearTimeout(timeoutId);
       if (e.name === 'AbortError') {
-        throw new Error('Cannot reach server — check your network or BFF URL');
+        throw new Error('Server is waking up — please try again in a moment');
       }
       throw e;
     } finally {

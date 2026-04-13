@@ -6,7 +6,7 @@
  *   POST /customer/1/loyalty-events                           — accrue points
  */
 import type { FastifyInstance } from 'fastify';
-import { ncrRequest } from '../lib/ncrClient.js';
+import { ncrRequest, ncrSiteRequest } from '../lib/ncrClient.js';
 
 export default async function loyaltyRoutes(app: FastifyInstance) {
   /**
@@ -32,7 +32,7 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
       const { cardNumber, cardType } = req.body;
 
       try {
-        const { status, data } = await ncrRequest<any>(
+        const { status, data } = await ncrSiteRequest<any>(
           `/customer/1/loyalty-accounts?loyaltyCardNumber=${encodeURIComponent(cardNumber)}&pageSize=1`
         );
 
@@ -97,7 +97,7 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
           transactionDate: new Date().toISOString(),
         };
 
-        const { status, data } = await ncrRequest<any>('/customer/1/loyalty-events', {
+        const { status, data } = await ncrSiteRequest<any>('/customer/1/loyalty-events', {
           method: 'POST',
           body: payload,
         });

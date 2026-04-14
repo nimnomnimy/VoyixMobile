@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VoyixMobile — Product Barcodes</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #fff; padding: 20px; }
+  h1 { font-size: 18px; margin-bottom: 4px; color: #CC0000; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 20px; }
+
+  .section { margin-bottom: 24px; }
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: #999; border-bottom: 1px solid #eee;
+    padding-bottom: 4px; margin-bottom: 12px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 12px 10px 8px;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .card svg { max-width: 100%; height: 60px; }
+  .name { font-size: 10px; font-weight: 600; color: #222; margin-top: 6px; line-height: 1.3; }
+  .price { font-size: 11px; color: #CC0000; font-weight: 700; margin-top: 2px; }
+  .code { font-size: 9px; color: #999; margin-top: 1px; font-family: monospace; }
+
+  /* Loyalty section — QR codes */
+  .loyalty-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .loyalty-card {
+    border: 2px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 12px 10px 8px;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .loyalty-card.flybuys  { border-color: #007AC2; }
+  .loyalty-card.tm       { border-color: #FF6B00; }
+  .loyalty-card.onepass  { border-color: #6B21A8; }
+  .loyalty-card canvas, .loyalty-card svg { max-width: 100%; }
+  .loyalty-label { font-size: 11px; font-weight: 700; margin-top: 6px; }
+  .loyalty-card.flybuys  .loyalty-label { color: #007AC2; }
+  .loyalty-card.tm       .loyalty-label { color: #FF6B00; }
+  .loyalty-card.onepass  .loyalty-label { color: #6B21A8; }
+  .loyalty-num { font-size: 9px; color: #999; font-family: monospace; margin-top: 2px; }
+
+  @media print {
+    body { padding: 10px; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>VoyixMobile — Kmart Demo Barcodes</h1>
+<p class="subtitle">Print this page and scan with the app camera. Press Ctrl+P / Cmd+P to print.</p>
+
+<!-- LOYALTY CARDS -->
+<div class="section">
+  <div class="section-title">Loyalty Cards (scan to add to transaction)</div>
+  <div class="loyalty-grid">
+    <div class="loyalty-card flybuys">
+      <svg id="fb7"></svg>
+      <div class="loyalty-label">Flybuys</div>
+      <div class="loyalty-num">Card: 7</div>
+    </div>
+    <div class="loyalty-card tm">
+      <svg id="tm8"></svg>
+      <div class="loyalty-label">Team Member</div>
+      <div class="loyalty-num">Card: 8</div>
+    </div>
+    <div class="loyalty-card onepass">
+      <svg id="op9"></svg>
+      <div class="loyalty-label">OnePass</div>
+      <div class="loyalty-num">Card: 9</div>
+    </div>
+  </div>
+</div>
+
+<!-- DEMO ITEMS -->
+<div class="section">
+  <div class="section-title">Demo Items (short codes)</div>
+  <div class="grid">
+    <div class="card"><svg id="b1"></svg><div class="name">Anko Wireless Earbuds</div><div class="price">$29.00</div><div class="code">1</div></div>
+    <div class="card"><svg id="b2"></svg><div class="name">Men's Regular Fit Crew Tee</div><div class="price">$10.00</div><div class="code">2</div></div>
+    <div class="card"><svg id="b3"></svg><div class="name">Ceramic Mug Set of 4</div><div class="price">$14.00</div><div class="code">3</div></div>
+    <div class="card"><svg id="b4"></svg><div class="name">Bluey Hollow Easter Egg 40g</div><div class="price">$3.00</div><div class="code">4</div></div>
+    <div class="card"><svg id="b5"></svg><div class="name">Kids' Stripe PJ Set</div><div class="price">$14.00</div><div class="code">5</div></div>
+    <div class="card"><svg id="b6"></svg><div class="name">Non-Stick Frypan 28cm</div><div class="price">$28.00</div><div class="code">6</div></div>
+  </div>
+</div>
+
+<!-- WOMENS -->
+<div class="section">
+  <div class="section-title">Womens</div>
+  <div class="grid">
+    <div class="card"><svg id="bw001"></svg><div class="name">Sleeveless Satin Lace Midi Dress</div><div class="price">$28.00</div><div class="code">9300601000001</div></div>
+    <div class="card"><svg id="bw002"></svg><div class="name">Long Sleeve Collared Mini Dress</div><div class="price">$28.00</div><div class="code">9300601000002</div></div>
+    <div class="card"><svg id="bw003"></svg><div class="name">Long Sleeve Waist Tie Maxi Dress</div><div class="price">$30.00</div><div class="code">9300601000003</div></div>
+    <div class="card"><svg id="bw004"></svg><div class="name">Women's V-Neck Linen Blend Tee</div><div class="price">$14.00</div><div class="code">9300601000004</div></div>
+    <div class="card"><svg id="bw005"></svg><div class="name">Women's Wide Leg Pants</div><div class="price">$22.00</div><div class="code">9300601000005</div></div>
+    <div class="card"><svg id="bw006"></svg><div class="name">Women's Ribbed Tank Top</div><div class="price">$10.00</div><div class="code">9300601000006</div></div>
+  </div>
+</div>
+
+<!-- MENS -->
+<div class="section">
+  <div class="section-title">Mens</div>
+  <div class="grid">
+    <div class="card"><svg id="bm001"></svg><div class="name">Men's Regular Fit Crew Tee</div><div class="price">$10.00</div><div class="code">9300601000011</div></div>
+    <div class="card"><svg id="bm002"></svg><div class="name">Men's Slim Fit Chino Pants</div><div class="price">$25.00</div><div class="code">9300601000012</div></div>
+    <div class="card"><svg id="bm003"></svg><div class="name">Men's Fleece Zip Hoodie</div><div class="price">$30.00</div><div class="code">9300601000013</div></div>
+    <div class="card"><svg id="bm004"></svg><div class="name">Men's Denim Shorts</div><div class="price">$20.00</div><div class="code">9300601000014</div></div>
+  </div>
+</div>
+
+<!-- KIDS & BABY -->
+<div class="section">
+  <div class="section-title">Kids &amp; Baby</div>
+  <div class="grid">
+    <div class="card"><svg id="bk001"></svg><div class="name">Kids' Long Sleeve Pyjama Set</div><div class="price">$16.00</div><div class="code">9300601000021</div></div>
+    <div class="card"><svg id="bk002"></svg><div class="name">Kids' Stripe PJ Set</div><div class="price">$14.00</div><div class="code">9300601000022</div></div>
+    <div class="card"><svg id="bk003"></svg><div class="name">Baby Cotton Bodysuit 3-Pack</div><div class="price">$12.00</div><div class="code">9300601000023</div></div>
+    <div class="card"><svg id="bk004"></svg><div class="name">Kids' Zip Fleece Jacket</div><div class="price">$22.00</div><div class="code">9300601000024</div></div>
+  </div>
+</div>
+
+<!-- HOME & LIVING -->
+<div class="section">
+  <div class="section-title">Home &amp; Living</div>
+  <div class="grid">
+    <div class="card"><svg id="bh001"></svg><div class="name">Anko Queen Microfibre Sheet Set</div><div class="price">$35.00</div><div class="code">9300601000031</div></div>
+    <div class="card"><svg id="bh002"></svg><div class="name">Anko Standard Pillow 2-Pack</div><div class="price">$18.00</div><div class="code">9300601000032</div></div>
+    <div class="card"><svg id="bh003"></svg><div class="name">Anko Cotton Bath Towel 2-Pack</div><div class="price">$22.00</div><div class="code">9300601000033</div></div>
+    <div class="card"><svg id="bh004"></svg><div class="name">Ceramic Mug Set of 4</div><div class="price">$14.00</div><div class="code">9300601000034</div></div>
+    <div class="card"><svg id="bh005"></svg><div class="name">Non-Stick Frypan 28cm</div><div class="price">$28.00</div><div class="code">9300601000035</div></div>
+  </div>
+</div>
+
+<!-- TECH & GAMING -->
+<div class="section">
+  <div class="section-title">Tech &amp; Gaming</div>
+  <div class="grid">
+    <div class="card"><svg id="bt001"></svg><div class="name">Anko Wireless Earbuds</div><div class="price">$29.00</div><div class="code">9300601000041</div></div>
+    <div class="card"><svg id="bt002"></svg><div class="name">Anko Bluetooth Speaker</div><div class="price">$35.00</div><div class="code">9300601000042</div></div>
+    <div class="card"><svg id="bt003"></svg><div class="name">USB-C Charging Cable 2m</div><div class="price">$9.00</div><div class="code">9300601000043</div></div>
+    <div class="card"><svg id="bt004"></svg><div class="name">Anko 20W Fast Charger</div><div class="price">$19.00</div><div class="code">9300601000044</div></div>
+  </div>
+</div>
+
+<!-- TOYS -->
+<div class="section">
+  <div class="section-title">Toys</div>
+  <div class="grid">
+    <div class="card"><svg id="by001"></svg><div class="name">Bluey Easter Hunt Pack 125g</div><div class="price">$9.00</div><div class="code">9300601000051</div></div>
+    <div class="card"><svg id="by002"></svg><div class="name">Vtech Winnie the Pooh Storybook</div><div class="price">$22.00</div><div class="code">9300601000052</div></div>
+    <div class="card"><svg id="by003"></svg><div class="name">Kids Art &amp; Craft Set</div><div class="price">$15.00</div><div class="code">9300601000053</div></div>
+    <div class="card"><svg id="by004"></svg><div class="name">Foam Dart Blaster</div><div class="price">$18.00</div><div class="code">9300601000054</div></div>
+  </div>
+</div>
+
+<!-- EASTER -->
+<div class="section">
+  <div class="section-title">Easter</div>
+  <div class="grid">
+    <div class="card"><svg id="be001"></svg><div class="name">Golden Gaytime Egg 150g</div><div class="price">$8.00</div><div class="code">9300601000061</div></div>
+    <div class="card"><svg id="be002"></svg><div class="name">Bluey Milk Chocolate Eggs 100g</div><div class="price">$5.50</div><div class="code">9300601000062</div></div>
+    <div class="card"><svg id="be003"></svg><div class="name">Nestle Milkybar Egg 72g</div><div class="price">$6.00</div><div class="code">9300601000063</div></div>
+    <div class="card"><svg id="be004"></svg><div class="name">Bluey Hollow Easter Egg 40g</div><div class="price">$3.00</div><div class="code">9300601000064</div></div>
+  </div>
+</div>
+
+<script>
+  const opts = {
+    format: 'CODE128',
+    width: 1.6,
+    height: 50,
+    displayValue: false,
+    margin: 4,
+  };
+
+  // Loyalty (short codes as CODE128)
+  JsBarcode('#fb7', '7', { ...opts, lineColor: '#007AC2' });
+  JsBarcode('#tm8', '8', { ...opts, lineColor: '#FF6B00' });
+  JsBarcode('#op9', '9', { ...opts, lineColor: '#6B21A8' });
+
+  // Demo items
+  JsBarcode('#b1', '1', opts);
+  JsBarcode('#b2', '2', opts);
+  JsBarcode('#b3', '3', opts);
+  JsBarcode('#b4', '4', opts);
+  JsBarcode('#b5', '5', opts);
+  JsBarcode('#b6', '6', opts);
+
+  // Womens
+  JsBarcode('#bw001', '9300601000001', opts);
+  JsBarcode('#bw002', '9300601000002', opts);
+  JsBarcode('#bw003', '9300601000003', opts);
+  JsBarcode('#bw004', '9300601000004', opts);
+  JsBarcode('#bw005', '9300601000005', opts);
+  JsBarcode('#bw006', '9300601000006', opts);
+
+  // Mens
+  JsBarcode('#bm001', '9300601000011', opts);
+  JsBarcode('#bm002', '9300601000012', opts);
+  JsBarcode('#bm003', '9300601000013', opts);
+  JsBarcode('#bm004', '9300601000014', opts);
+
+  // Kids & Baby
+  JsBarcode('#bk001', '9300601000021', opts);
+  JsBarcode('#bk002', '9300601000022', opts);
+  JsBarcode('#bk003', '9300601000023', opts);
+  JsBarcode('#bk004', '9300601000024', opts);
+
+  // Home & Living
+  JsBarcode('#bh001', '9300601000031', opts);
+  JsBarcode('#bh002', '9300601000032', opts);
+  JsBarcode('#bh003', '9300601000033', opts);
+  JsBarcode('#bh004', '9300601000034', opts);
+  JsBarcode('#bh005', '9300601000035', opts);
+
+  // Tech & Gaming
+  JsBarcode('#bt001', '9300601000041', opts);
+  JsBarcode('#bt002', '9300601000042', opts);
+  JsBarcode('#bt003', '9300601000043', opts);
+  JsBarcode('#bt004', '9300601000044', opts);
+
+  // Toys
+  JsBarcode('#by001', '9300601000051', opts);
+  JsBarcode('#by002', '9300601000052', opts);
+  JsBarcode('#by003', '9300601000053', opts);
+  JsBarcode('#by004', '9300601000054', opts);
+
+  // Easter
+  JsBarcode('#be001', '9300601000061', opts);
+  JsBarcode('#be002', '9300601000062', opts);
+  JsBarcode('#be003', '9300601000063', opts);
+  JsBarcode('#be004', '9300601000064', opts);
+</script>
+</body>
+</html>

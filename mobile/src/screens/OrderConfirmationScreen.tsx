@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
-  InteractionManager,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,8 +27,8 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   const order = useOrderStore((state) => state.orders.find((o) => o.id === orderId));
 
   const [wantsEmail, setWantsEmail] = useState(false);
+  const [showInput, setShowInput] = useState(false);
   const [email, setEmail] = useState('');
-  const emailInputRef = useRef<any>(null);
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
@@ -112,12 +111,15 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={styles.emailToggle}
               onPress={() => {
-                setWantsEmail((v) => !v);
+                const next = !wantsEmail;
+                setWantsEmail(next);
                 setEmail('');
-                if (!wantsEmail) {
-                  InteractionManager.runAfterInteractions(() => {
-                    setTimeout(() => emailInputRef.current?.focus(), 150);
-                  });
+                if (next) {
+                  // Mount the input only after the touch event fully releases
+                  // so iOS doesn't steal focus away immediately.
+                  requestAnimationFrame(() => setShowInput(true));
+                } else {
+                  setShowInput(false);
                 }
               }}
             >
@@ -129,33 +131,35 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
               <Text style={styles.emailToggleLabel}>Email receipt to customer</Text>
             </TouchableOpacity>
 
-            <View style={[styles.emailRow, !wantsEmail && { display: 'none' }]}>
-              <TextInput
-                style={styles.emailInput}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="customer@email.com"
-                placeholderTextColor={Colors.textLight}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="send"
-                onSubmitEditing={handleSendReceipt}
-                editable={!emailSending}
-                ref={emailInputRef}
-              />
-              <TouchableOpacity
-                style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
-                onPress={handleSendReceipt}
-                disabled={emailSending || !email}
-              >
-                {emailSending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="send" size={16} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
+            {showInput && (
+              <View style={styles.emailRow}>
+                <TextInput
+                  style={styles.emailInput}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="customer@email.com"
+                  placeholderTextColor={Colors.textLight}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendReceipt}
+                  editable={!emailSending}
+                />
+                <TouchableOpacity
+                  style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
+                  onPress={handleSendReceipt}
+                  disabled={emailSending || !email}
+                >
+                  {emailSending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="send" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 

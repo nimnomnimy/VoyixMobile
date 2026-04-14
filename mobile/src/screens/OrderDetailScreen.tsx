@@ -127,17 +127,22 @@ export default function OrderDetailScreen({ route, navigation }: any) {
 
   const doResume = () => {
     if (!order) return;
+    // Snapshot values before any state mutations — state updates trigger
+    // re-renders and order/items refs can become stale mid-function.
+    const resumeId = order.id;
+    const resumeItems = order.items.slice();
+
     clearCart();
-    order.items.forEach((item) => {
+    resumeItems.forEach((item) => {
       // Strip refundedQty, effectivePrice, and bspLineId — the resumed cart
       // is a fresh BSP order so old line IDs must not carry over.
       const { refundedQty, effectivePrice, bspLineId, ...cartItem } = item;
       addItem(cartItem);
     });
-    // Navigate first, then remove — removing order triggers a re-render
-    // with order=undefined which crashes if navigation hasn't completed yet.
+    // Navigate before removeOrder — removing triggers a re-render with
+    // order=undefined while the screen is still mounted, causing a crash.
     navigation.navigate('Main', { screen: 'Cart' });
-    removeOrder(order.id);
+    removeOrder(resumeId);
   };
 
   const handleCancelSuspended = () => {

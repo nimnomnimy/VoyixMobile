@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { bff, BffError } from '../lib/bffClient';
-import { CatalogItem, CATALOG } from '../data/catalog';
+import { CatalogItem, CATALOG, LOCAL_IMAGES } from '../data/catalog';
 
 interface BspItemDetail {
   itemCode?: string | { value: string };
@@ -42,7 +42,8 @@ function normaliseBspItem(item: BspItemDetail, priceMap: Record<string, number>)
   const id = normaliseItemCode(item.itemCode);
   const name = normaliseDescription(item.shortDescription) || id;
   const barcode = item.packageIdentifiers?.[0]?.value;
-  const image = item.imageUrls?.[0] ?? `https://picsum.photos/seed/${id}/160/160`;
+  // Prefer BSP-hosted image, fall back to bundled local asset
+  const image: string | number | undefined = item.imageUrls?.[0] ?? LOCAL_IMAGES[id] ?? undefined;
   const category = item.departmentId ?? 'General';
   const price = priceMap[id] ?? 0;
 
@@ -126,7 +127,10 @@ export function useCatalog(query: string, category: string) {
       const matchCat = cat === 'All' || item.category === cat;
       const matchQ   = !q || item.name.toLowerCase().includes(q.toLowerCase());
       return matchCat && matchQ;
-    });
+    }).map((item) => ({
+      ...item,
+      image: item.image ?? LOCAL_IMAGES[item.id] ?? undefined,
+    }));
     setItems(filtered);
     setUsingLocal(true);
   }

@@ -18,6 +18,7 @@ import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { bff, BffError } from '../lib/bffClient';
 import { Colors, Typography, Spacing, Radius } from '../theme';
+import { imageSource } from '../data/catalog';
 
 export default function OrderDetailScreen({ route, navigation }: any) {
   const { orderId } = route.params;
@@ -237,8 +238,8 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         key={item.cartKey}
         style={[styles.itemRow, fullyRefunded && styles.itemRefunded]}
       >
-        {item.image && (
-          <Image source={{ uri: item.image }} style={styles.itemImage as ImageStyle} />
+        {imageSource(item.image) && (
+          <Image source={imageSource(item.image) as any} style={styles.itemImage as ImageStyle} />
         )}
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, fullyRefunded && styles.strikethrough]} numberOfLines={2}>

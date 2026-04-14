@@ -24,10 +24,16 @@ import {
   CLOTHING_CATEGORIES,
   SIZES,
   COLORS,
+  imageSource,
 } from '../data/catalog';
 
 // Maps barcode → loyalty card type
 const LOYALTY_CARD_MAP: Record<string, LoyaltyCardType> = {
+  // Demo short codes
+  '7': 'flybuys',
+  '8': 'teamMember',
+  '9': 'onepass',
+  // Full card numbers
   '111122223333': 'flybuys',
   '0430044467': 'flybuys',
   '123412341234': 'flybuys',
@@ -52,6 +58,7 @@ export default function CartScreen({ navigation }: any) {
   const teamMember = useLoyaltyStore((state) => state.teamMember);
   const onepass = useLoyaltyStore((state) => state.onepass);
   const setCard = useLoyaltyStore((state) => state.setCard);
+  const removeCard = useLoyaltyStore((state) => state.removeCard);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -59,7 +66,7 @@ export default function CartScreen({ navigation }: any) {
   const [keypadVisible, setKeypadVisible] = useState(false);
   const [keypadValue, setKeypadValue] = useState('');
   const [loyaltyToast, setLoyaltyToast] = useState<{ type: LoyaltyCardType; replaced: boolean } | null>(null);
-  const toastAnim = useRef(new Animated.Value(-100)).current;
+  const toastAnim = useRef(new Animated.Value(80)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [attributeItem, setAttributeItem] = useState<CatalogItem | null>(null);
   const [selectedSize, setSelectedSize] = useState('');
@@ -138,10 +145,10 @@ export default function CartScreen({ navigation }: any) {
     const replaced = setCard(type, cardNumber);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setLoyaltyToast({ type, replaced });
-    toastAnim.setValue(-100);
+    toastAnim.setValue(80);
     Animated.spring(toastAnim, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
     toastTimer.current = setTimeout(() => {
-      Animated.timing(toastAnim, { toValue: -100, duration: 250, useNativeDriver: true }).start(() =>
+      Animated.timing(toastAnim, { toValue: 80, duration: 250, useNativeDriver: true }).start(() =>
         setLoyaltyToast(null)
       );
     }, 2500);
@@ -178,7 +185,7 @@ export default function CartScreen({ navigation }: any) {
     if (scanned) return;
     setScanned(true);
     setScannerOpen(false);
-    resolveCode(data, () => setScanned(false));
+    resolveCode(data);
   };
 
   const handleKeypadOk = () => {
@@ -202,6 +209,46 @@ export default function CartScreen({ navigation }: any) {
     : [];
 
   const sizes = attributeItem ? (SIZES[attributeItem.category] ?? []) : [];
+
+  const LOYALTY_CARDS: { type: LoyaltyCardType; account: typeof flybuys; color: string; label: string }[] = [
+    { type: 'flybuys',    account: flybuys,     color: '#007AC2', label: 'Flybuys'      },
+    { type: 'teamMember', account: teamMember,  color: '#FF6B00', label: 'Team Member'  },
+    { type: 'onepass',    account: onepass,     color: '#6B21A8', label: 'OnePass'      },
+  ];
+  const activeCards = LOYALTY_CARDS.filter((c) => c.account !== null);
+
+  const renderLoyaltyHeader = () => {
+    if (activeCards.length === 0) return null;
+    return (
+      <>
+        {activeCards.map(({ type, account, color, label }) => (
+          <View key={type} style={[styles.itemRow, styles.loyaltyCardRow]}>
+            <View style={[styles.loyaltyCardIcon, { backgroundColor: color }]}>
+              {type === 'flybuys' ? (
+                <Image
+                  source={require('../../assets/flybuys-logo.png')}
+                  style={styles.loyaltyCardLogo as ImageStyle}
+                />
+              ) : (
+                <Text style={styles.loyaltyCardIconText}>
+                  {type === 'teamMember' ? 'TM' : 'OP'}
+                </Text>
+              )}
+            </View>
+            <View style={styles.itemDetails}>
+              <Text style={styles.itemName}>{label}</Text>
+              <Text style={styles.loyaltyCardMember}>
+                {account!.memberName === 'Looking up...' ? 'Looking up...' : account!.memberName}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => removeCard(type)} style={styles.deleteButton}>
+              <Text style={styles.deleteButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -230,52 +277,6 @@ export default function CartScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Loyalty card row */}
-      <View style={styles.loyaltyRow}>
-        {/* Flybuys */}
-        <View style={[styles.loyaltySlot, flybuys ? styles.loyaltySlotActive : styles.loyaltySlotInactive]}>
-          {flybuys && (
-            <>
-              <Image
-                source={require('../../assets/flybuys-logo.png')}
-                style={styles.flybuysLogo as ImageStyle}
-              />
-              {flybuys.pointsBalance > 0 && (
-                <Text style={styles.loyaltyPoints}>{flybuys.pointsBalance.toLocaleString()} pts</Text>
-              )}
-            </>
-          )}
-        </View>
-
-        {/* Team Member */}
-        <View style={[styles.loyaltySlot, teamMember ? styles.loyaltySlotActive : styles.loyaltySlotInactive]}>
-          {teamMember && (
-            <>
-              <View style={[styles.loyaltyActiveBadge, { backgroundColor: '#FF6B00' }]}>
-                <Text style={styles.loyaltyActiveBadgeText}>TEAM MEMBER</Text>
-              </View>
-              {teamMember.pointsBalance > 0 && (
-                <Text style={styles.loyaltyPoints}>{teamMember.pointsBalance.toLocaleString()} pts</Text>
-              )}
-            </>
-          )}
-        </View>
-
-        {/* OnePass */}
-        <View style={[styles.loyaltySlot, onepass ? styles.loyaltySlotActive : styles.loyaltySlotInactive]}>
-          {onepass && (
-            <>
-              <View style={[styles.loyaltyActiveBadge, { backgroundColor: '#6B21A8' }]}>
-                <Text style={styles.loyaltyActiveBadgeText}>ONEPASS</Text>
-              </View>
-              {onepass.pointsBalance > 0 && (
-                <Text style={styles.loyaltyPoints}>{onepass.pointsBalance.toLocaleString()} pts</Text>
-              )}
-            </>
-          )}
-        </View>
-      </View>
-
       {/* Search results overlay */}
       {searchResults.length > 0 && (
         <View style={styles.searchResults}>
@@ -285,8 +286,8 @@ export default function CartScreen({ navigation }: any) {
               style={styles.searchResultRow}
               onPress={() => handleAddPress(item)}
             >
-              {item.image && (
-                <Image source={{ uri: item.image }} style={styles.searchResultImage as ImageStyle} />
+              {imageSource(item.image) && (
+                <Image source={imageSource(item.image) as any} style={styles.searchResultImage as ImageStyle} />
               )}
               <View style={styles.searchResultInfo}>
                 <Text style={styles.searchResultName} numberOfLines={1}>{item.name}</Text>
@@ -301,7 +302,7 @@ export default function CartScreen({ navigation }: any) {
       )}
 
       {/* Cart items */}
-      {items.length === 0 ? (
+      {items.length === 0 && activeCards.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Cart is empty</Text>
           <Text style={styles.emptySubtext}>Scan, search, or use Item Lookup to add items</Text>
@@ -310,10 +311,11 @@ export default function CartScreen({ navigation }: any) {
         <FlatList
           data={items}
           keyExtractor={(item) => item.cartKey}
+          ListHeaderComponent={renderLoyaltyHeader}
           renderItem={({ item }) => (
             <View style={styles.itemRow}>
-              {item.image && (
-                <Image source={{ uri: item.image }} style={styles.itemImage as ImageStyle} />
+              {imageSource(item.image) && (
+                <Image source={imageSource(item.image) as any} style={styles.itemImage as ImageStyle} />
               )}
               <View style={styles.itemDetails}>
                 <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
@@ -397,7 +399,7 @@ export default function CartScreen({ navigation }: any) {
 
       {/* Loyalty toast notification */}
       {loyaltyToast && (
-        <Animated.View style={[styles.loyaltyToast, { transform: [{ translateY: toastAnim }] }]}>
+        <Animated.View style={[styles.loyaltyToast, { transform: [{ translateY: toastAnim }], opacity: toastAnim.interpolate({ inputRange: [0, 80], outputRange: [1, 0] }) }]}>
           {loyaltyToast.type === 'flybuys' ? (
             <Image source={require('../../assets/flybuys-logo.png')} style={styles.toastLogo as ImageStyle} />
           ) : (
@@ -556,66 +558,32 @@ const styles = StyleSheet.create({
   iconButtonBlue: { backgroundColor: Colors.secondary },
   iconButtonText: { fontSize: 20 },
 
-  // Loyalty row
-  loyaltyRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  // Loyalty card rows (rendered as pinned cart items)
+  loyaltyCardRow: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.secondary,
   },
-  loyaltySlot: {
-    flex: 1,
-    height: 44,
+  loyaltyCardIcon: {
+    width: 56,
+    height: 56,
     borderRadius: Radius.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
   },
-  loyaltySlotActive: {
-    borderColor: Colors.secondary,
-    backgroundColor: '#EFF6FF',
-  },
-  loyaltySlotInactive: {
-    borderColor: Colors.border,
-    borderStyle: 'dashed' as const,
-    backgroundColor: Colors.background,
-  },
-  loyaltySlotLabel: {
-    fontSize: 11,
-    color: Colors.textLight,
-    fontWeight: '500' as const,
-  },
-  flybuysLogo: {
-    width: '90%',
-    height: 28,
+  loyaltyCardLogo: {
+    width: 44,
+    height: 22,
     resizeMode: 'contain',
   },
-  loyaltyActiveBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
-  },
-  loyaltyActiveBadgeText: {
+  loyaltyCardIconText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '700' as const,
-    letterSpacing: 0.5,
   },
-  loyaltyMemberName: {
-    fontSize: 10,
-    color: Colors.text,
-    fontWeight: '600' as const,
-    marginTop: 3,
-    textAlign: 'center' as const,
-  },
-  loyaltyPoints: {
-    fontSize: 10,
+  loyaltyCardMember: {
+    fontSize: 12,
     color: Colors.textLight,
-    marginTop: 1,
-    textAlign: 'center' as const,
+    marginTop: 2,
   },
 
   // Search results
@@ -734,25 +702,33 @@ const styles = StyleSheet.create({
   // Loyalty toast
   loyaltyToast: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#1a1a2e',
+    bottom: 100,
+    left: Spacing.md,
+    right: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
-    zIndex: 999,
-  },
-  toastLogo: { width: 80, height: 24, resizeMode: 'contain' },
-  toastBadge: {
     paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 6,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.secondary,
+  },
+  toastLogo: { width: 72, height: 22, resizeMode: 'contain' },
+  toastBadge: {
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderRadius: Radius.sm,
   },
-  toastBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' as const },
-  toastMessage: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '600' as const },
+  toastBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' as const },
+  toastMessage: { flex: 1, color: Colors.text, fontSize: 13, fontWeight: '600' as const },
 
   // Attribute sheet
   attrOverlay: {

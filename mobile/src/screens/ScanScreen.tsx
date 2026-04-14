@@ -26,6 +26,7 @@ import {
   CLOTHING_CATEGORIES,
   SIZES,
   COLORS,
+  imageSource,
 } from '../data/catalog';
 import { useCatalog } from '../hooks/useCatalog';
 import { bff } from '../lib/bffClient';
@@ -176,7 +177,7 @@ export default function ScanScreen() {
     if (scanned) return;
     setScanned(true);
     setScannerOpen(false);
-    resolveCode(data, () => setScanned(false));
+    resolveCode(data);
   };
 
   const handleKeypadOk = () => {
@@ -266,7 +267,9 @@ export default function ScanScreen() {
             const lowStock   = stock?.isLowStock   ?? false;
             return (
               <View key={item.id} style={[styles.itemCard, outOfStock && styles.itemCardDimmed]}>
-                <Image source={{ uri: item.image }} style={styles.itemImage as ImageStyle} />
+                {imageSource(item.image) && (
+                  <Image source={imageSource(item.image) as any} style={styles.itemImage as ImageStyle} />
+                )}
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                   <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>

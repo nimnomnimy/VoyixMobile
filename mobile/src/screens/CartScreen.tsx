@@ -316,6 +316,10 @@ export default function CartScreen({ navigation }: any) {
             returnKeyType="done"
             blurOnSubmit={false}
             autoFocus
+            onBlur={() => {
+              // Refocus after a short delay so modals/alerts can still steal focus
+              setTimeout(() => searchInputRef.current?.focus(), 100);
+            }}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>

@@ -231,9 +231,7 @@ export default function CheckoutScreen({ navigation }: any) {
           <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: Spacing.md }]}>Payment Method</Text>
-
-        <View style={styles.paymentRow}>
+        <View style={[styles.paymentRow, { marginTop: Spacing.md }]}>
           {PAYMENT_METHODS.map((method) => (
             <TouchableOpacity
               key={method.id}

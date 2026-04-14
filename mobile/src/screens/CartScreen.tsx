@@ -61,6 +61,8 @@ export default function CartScreen({ navigation }: any) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const searchQueryRef = useRef('');
+  const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<any>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(false);
@@ -285,23 +287,35 @@ export default function CartScreen({ navigation }: any) {
       <View style={styles.topBar}>
         <View style={styles.searchInputWrap}>
           <TextInput
+            ref={searchInputRef}
             style={styles.searchInput}
             placeholder="Search or scan barcode..."
             value={searchQuery}
             onChangeText={(text) => {
               searchQueryRef.current = text;
               setSearchQuery(text);
+              // Scanner debounce: if no more input after 120ms, treat as a complete scan
+              if (scanDebounce.current) clearTimeout(scanDebounce.current);
+              scanDebounce.current = setTimeout(() => {
+                const code = searchQueryRef.current.trim();
+                if (!code) return;
+                searchQueryRef.current = '';
+                setSearchQuery('');
+                void resolveCode(code);
+              }, 120);
             }}
             onSubmitEditing={() => {
+              if (scanDebounce.current) clearTimeout(scanDebounce.current);
               const code = searchQueryRef.current.trim();
               if (!code) return;
               searchQueryRef.current = '';
               setSearchQuery('');
-              resolveCode(code);
+              void resolveCode(code);
             }}
             placeholderTextColor={Colors.textLight}
             returnKeyType="done"
             blurOnSubmit={false}
+            autoFocus
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>

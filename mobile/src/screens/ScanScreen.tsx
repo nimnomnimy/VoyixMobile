@@ -48,6 +48,7 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 export default function ScanScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchQueryRef = useRef('');
+  const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -235,8 +236,20 @@ export default function ScanScreen() {
             onChangeText={(text) => {
               searchQueryRef.current = text;
               setSearchQuery(text);
+              // Scanner debounce: no-spaces input that stops for 120ms = barcode scan
+              if (scanDebounce.current) clearTimeout(scanDebounce.current);
+              if (/^\S+$/.test(text.trim())) {
+                scanDebounce.current = setTimeout(() => {
+                  const code = searchQueryRef.current.trim();
+                  if (!code) return;
+                  searchQueryRef.current = '';
+                  setSearchQuery('');
+                  void resolveCode(code);
+                }, 120);
+              }
             }}
             onSubmitEditing={() => {
+              if (scanDebounce.current) clearTimeout(scanDebounce.current);
               const code = searchQueryRef.current.trim();
               if (!code) return;
               searchQueryRef.current = '';

@@ -56,7 +56,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
         paymentMethod: order.paymentMethod,
         storeName,
       });
-      setEmailSent(true);
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch (error) {
       const msg = error instanceof BffError ? error.message : 'Could not send email. Try again.';
       showAlert('Email failed', msg);
@@ -259,7 +259,8 @@ const styles = StyleSheet.create({
   emailSentText: { fontSize: 13, color: Colors.success, fontWeight: '500' as const },
 
   footer: {
-    paddingHorizontal: Spacing.lg,
+    width: '100%',
+    paddingTop: Spacing.lg,
   },
   button: {
     backgroundColor: Colors.primary,

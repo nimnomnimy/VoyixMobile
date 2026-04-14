@@ -33,6 +33,11 @@ await app.register(staticFiles, {
   root: join(__dirname, '../public/images'),
   prefix: '/images/',
 });
+await app.register(staticFiles, {
+  root: join(__dirname, '../public/ios'),
+  prefix: '/ios/',
+  decorateReply: false,
+});
 
 // Health check
 app.get('/health', async () => ({ ok: true, service: 'VoyixMobile BFF' }));

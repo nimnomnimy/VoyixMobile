@@ -243,8 +243,6 @@ export default function CartScreen({ navigation }: any) {
     }
   };
 
-  const searchResults: CatalogItem[] = [];
-
   const sizes = attributeItem ? (SIZES[attributeItem.category] ?? []) : [];
 
   const LOYALTY_CARDS: { type: LoyaltyCardType; account: typeof flybuys; color: string; label: string }[] = [
@@ -283,81 +281,37 @@ export default function CartScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Search + Camera + Keypad row */}
-      <View style={styles.topBar}>
-        <View style={styles.searchInputWrap}>
-          <TextInput
-            ref={searchInputRef}
-            style={styles.searchInput}
-            placeholder="Search or scan barcode..."
-            value={searchQuery}
-            onChangeText={(text) => {
-              searchQueryRef.current = text;
-              setSearchQuery(text);
-              // Scanner debounce: if no more input after 120ms, treat as a complete scan
-              if (scanDebounce.current) clearTimeout(scanDebounce.current);
-              scanDebounce.current = setTimeout(() => {
-                const code = searchQueryRef.current.trim();
-                if (!code) return;
-                searchQueryRef.current = '';
-                setSearchQuery('');
-                void resolveCode(code);
-              }, 120);
-            }}
-            onSubmitEditing={() => {
-              if (scanDebounce.current) clearTimeout(scanDebounce.current);
-              const code = searchQueryRef.current.trim();
-              if (!code) return;
-              searchQueryRef.current = '';
-              setSearchQuery('');
-              void resolveCode(code);
-            }}
-            placeholderTextColor={Colors.textLight}
-            returnKeyType="done"
-            blurOnSubmit={false}
-            autoFocus
-            onBlur={() => {
-              // Refocus after a short delay so modals/alerts can still steal focus
-              setTimeout(() => searchInputRef.current?.focus(), 100);
-            }}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-              <Text style={styles.clearButtonText}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <TouchableOpacity style={styles.iconButton} onPress={handleCameraPress}>
-          <Text style={styles.iconButtonText}>📷</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.iconButton, styles.iconButtonBlue]} onPress={() => { setKeypadValue(''); setKeypadVisible(true); }}>
-          <Text style={styles.iconButtonText}>🔢</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search results overlay */}
-      {searchResults.length > 0 && (
-        <View style={styles.searchResults}>
-          {searchResults.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.searchResultRow}
-              onPress={() => handleAddPress(item)}
-            >
-              {imageSource(item.image) && (
-                <Image source={imageSource(item.image) as any} style={styles.searchResultImage as ImageStyle} />
-              )}
-              <View style={styles.searchResultInfo}>
-                <Text style={styles.searchResultName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.searchResultPrice}>${item.price.toFixed(2)}</Text>
-              </View>
-              <View style={styles.addBadge}>
-                <Text style={styles.addBadgeText}>+ Add</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      {/* Hidden scanner input — always focused, no keyboard, captures wedge scanner keystrokes */}
+      <TextInput
+        ref={searchInputRef}
+        style={styles.hiddenInput}
+        value={searchQuery}
+        onChangeText={(text) => {
+          searchQueryRef.current = text;
+          setSearchQuery(text);
+          if (scanDebounce.current) clearTimeout(scanDebounce.current);
+          scanDebounce.current = setTimeout(() => {
+            const code = searchQueryRef.current.trim();
+            if (!code) return;
+            searchQueryRef.current = '';
+            setSearchQuery('');
+            void resolveCode(code);
+          }, 120);
+        }}
+        onSubmitEditing={() => {
+          if (scanDebounce.current) clearTimeout(scanDebounce.current);
+          const code = searchQueryRef.current.trim();
+          if (!code) return;
+          searchQueryRef.current = '';
+          setSearchQuery('');
+          void resolveCode(code);
+        }}
+        returnKeyType="done"
+        blurOnSubmit={false}
+        autoFocus
+        showSoftInputOnFocus={false}
+        onBlur={() => setTimeout(() => searchInputRef.current?.focus(), 100)}
+      />
 
       {/* Cart items */}
       {items.length === 0 && activeCards.length === 0 ? (
@@ -427,33 +381,43 @@ export default function CartScreen({ navigation }: any) {
         />
       )}
 
-      {/* Footer */}
-      {items.length > 0 && (
-        <View style={styles.footer}>
-          {totalDiscount > 0 && (
-            <View style={styles.savingsRow}>
-              <Text style={styles.savingsLabel}>
-                {basketDiscount > 0 && Object.keys(discountMap).length === 0
-                  ? '$5 Off Your Order'
-                  : 'Promotions Applied'}
-              </Text>
-              <Text style={styles.savingsAmount}>-${totalDiscount.toFixed(2)}</Text>
-            </View>
-          )}
+      {/* Footer — always visible */}
+      <View style={styles.footer}>
+        {items.length > 0 && totalDiscount > 0 && (
+          <View style={styles.savingsRow}>
+            <Text style={styles.savingsLabel}>
+              {basketDiscount > 0 && Object.keys(discountMap).length === 0
+                ? '$5 Off Your Order'
+                : 'Promotions Applied'}
+            </Text>
+            <Text style={styles.savingsAmount}>-${totalDiscount.toFixed(2)}</Text>
+          </View>
+        )}
+        {items.length > 0 && (
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>
               {totalDiscount > 0 ? 'Subtotal (after savings):' : 'Total:'}
             </Text>
             <Text style={styles.totalAmount}>${(total - totalDiscount).toFixed(2)}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.checkoutButton}
-            onPress={() => navigation.navigate('Checkout')}
-          >
-            <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
+        )}
+        <View style={styles.footerActions}>
+          <TouchableOpacity style={styles.footerIconButton} onPress={handleCameraPress}>
+            <Text style={styles.footerIconText}>📷</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.footerIconButton, styles.footerIconButtonBlue]} onPress={() => { setKeypadValue(''); setKeypadVisible(true); }}>
+            <Text style={styles.footerIconText}>🔢</Text>
+          </TouchableOpacity>
+          {items.length > 0 && (
+            <TouchableOpacity
+              style={styles.checkoutButton}
+              onPress={() => navigation.navigate('Checkout')}
+            >
+              <Text style={styles.checkoutButtonText}>Checkout  →</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+      </View>
 
       {/* Loyalty toast notification */}
       {loyaltyToast && (
@@ -575,46 +539,13 @@ export default function CartScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
 
-  // Top bar
-  topBar: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  // Hidden scanner input
+  hiddenInput: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    opacity: 0,
   },
-  searchInputWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.background,
-    paddingHorizontal: Spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    fontSize: 14,
-    color: Colors.text,
-  },
-  clearButton: { padding: 4 },
-  clearButtonText: { fontSize: 14, color: Colors.textLight },
-  iconButton: {
-    backgroundColor: Colors.primary,
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconButtonBlue: { backgroundColor: Colors.secondary },
-  iconButtonText: { fontSize: 20 },
 
   // Loyalty card strip — single row of chips
   loyaltyRow: {
@@ -650,38 +581,6 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
   },
 
-  // Search results
-  searchResults: {
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    maxHeight: 280,
-  },
-  searchResultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  searchResultImage: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.border,
-  },
-  searchResultInfo: { flex: 1 },
-  searchResultName: { fontSize: 13, color: Colors.text, fontWeight: '500' as const },
-  searchResultPrice: { fontSize: 12, color: Colors.primary, fontWeight: '600' as const, marginTop: 2 },
-  addBadge: {
-    backgroundColor: Colors.secondary,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
-  },
-  addBadgeText: { color: '#fff', fontSize: 12, fontWeight: '600' as const },
 
   // Empty state
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -744,25 +643,41 @@ const styles = StyleSheet.create({
   // Footer
   footer: {
     backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
-  savingsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  savingsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   savingsLabel: { fontSize: 13, color: Colors.success, fontWeight: '600' as const },
   savingsAmount: { fontSize: 13, color: Colors.success, fontWeight: '700' as const },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg },
-  totalLabel: { fontSize: 16, fontWeight: '600' as const, color: Colors.text, flex: 1, paddingRight: Spacing.sm },
-  totalAmount: { fontSize: 16, fontWeight: '700' as const, color: Colors.primary, flexShrink: 0 },
-  checkoutButton: {
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  totalLabel: { fontSize: 15, fontWeight: '600' as const, color: Colors.text, flex: 1, paddingRight: Spacing.sm },
+  totalAmount: { fontSize: 15, fontWeight: '700' as const, color: Colors.primary, flexShrink: 0 },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  footerIconButton: {
     backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerIconButtonBlue: { backgroundColor: Colors.secondary },
+  footerIconText: { fontSize: 20 },
+  checkoutButton: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    paddingVertical: 11,
     borderRadius: Radius.md,
     alignItems: 'center',
   },
-  checkoutButtonText: { ...Typography.button, color: Colors.background },
+  checkoutButtonText: { color: Colors.background, fontSize: 15, fontWeight: '700' as const },
 
   // Loyalty toast
   loyaltyToast: {

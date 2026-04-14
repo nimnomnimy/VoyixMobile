@@ -139,10 +139,15 @@ export default function OrderDetailScreen({ route, navigation }: any) {
       const { refundedQty, effectivePrice, bspLineId, ...cartItem } = item;
       addItem(cartItem);
     });
-    // Navigate before removeOrder — removing triggers a re-render with
-    // order=undefined while the screen is still mounted, causing a crash.
-    navigation.navigate('Main', { screen: 'Cart' });
-    removeOrder(resumeId);
+    // Pop back to the Orders tab first, then switch to Cart tab.
+    // Using goBack() + a deferred tab switch avoids the react-navigation
+    // crash that occurs when navigating to a nested tab screen while
+    // simultaneously mutating the store that sourced this screen's data.
+    navigation.goBack();
+    setTimeout(() => {
+      removeOrder(resumeId);
+      navigation.navigate('Main', { screen: 'Cart' });
+    }, 50);
   };
 
   const handleCancelSuspended = () => {

@@ -56,24 +56,31 @@ export default async function catalogRoutes(app: FastifyInstance) {
       // BSP requires pageSize >= 10
       const pageSize = Math.max(10, parseInt(req.query.pageSize ?? '20', 10));
 
-      let searchPath = `/catalog/v2/item-details/search?itemStatus=ACTIVE&sortField=ITEM_CODE&sortDirection=ASC&pageSize=${pageSize}`;
+      // BSP's packageIdentifierValue filter doesn't work reliably — fetch all items
+      // and filter client-side when a barcode is requested.
+      const fetchSize = barcode ? 200 : pageSize;
+      let searchPath = `/catalog/v2/item-details/search?itemStatus=ACTIVE&sortField=ITEM_CODE&sortDirection=ASC&pageSize=${fetchSize}`;
 
-      if (barcode) {
-        searchPath += `&packageIdentifierValue=${encodeURIComponent(barcode)}`;
-      } else if (q) {
+      if (q) {
         searchPath += `&shortDescriptionPattern=*${encodeURIComponent(q)}*`;
       }
 
       const { status, data } = await ncrSiteRequest<any>(searchPath);
       assertOk(status, 'catalog search');
 
-      // Normalise BSP response: flatten pageContent wrapper for mobile client.
-      // BSP returns: { item: { itemId: { itemCode }, shortDescription, departmentId, packageIdentifiers }, itemPrices: [] }
-      // Mobile expects flat BspItemDetail: { itemCode, shortDescription, departmentId, packageIdentifiers, imageUrls }
       const body = data as any;
-      const pageContent: any[] = body.pageContent ?? [];
+      let pageContent: any[] = body.pageContent ?? [];
 
-      // Extract item codes and fetch images from item-attributes in parallel
+      // If barcode lookup: filter server-side to exact packageIdentifier or itemCode match
+      if (barcode) {
+        pageContent = pageContent.filter((entry: any) => {
+          const item = entry.item ?? entry;
+          const itemCode = item.itemId?.itemCode ?? item.itemCode ?? '';
+          const barcodes: string[] = (item.packageIdentifiers ?? []).map((p: any) => p.value);
+          return itemCode === barcode || barcodes.includes(barcode);
+        });
+      }
+
       const flatItems = pageContent.map((entry: any) => entry.item ?? entry);
       const itemCodes = flatItems.map((item: any) => item.itemId?.itemCode ?? item.itemCode).filter(Boolean);
       const imageMap = itemCodes.length > 0 ? fetchItemImages(itemCodes) : {};
@@ -92,7 +99,7 @@ export default async function catalogRoutes(app: FastifyInstance) {
         };
       });
       return {
-        totalCount:  body.totalResults ?? 0,
+        totalCount:  barcode ? itemDetails.length : (body.totalResults ?? 0),
         pageNumber:  body.pageNumber ?? 0,
         lastPage:    body.lastPage ?? true,
         itemDetails,

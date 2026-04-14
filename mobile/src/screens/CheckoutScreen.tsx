@@ -210,21 +210,16 @@ export default function CheckoutScreen({ navigation }: any) {
         ))}
         {basketDiscount > 0 && (
           <View style={styles.totalSummary}>
-            <Text style={styles.promoLabel}>Basket Discount</Text>
+            <Text style={styles.promoLabel}>
+              {teamMember ? 'Team Member Discount' : flybuys ? 'Flybuys Savings' : onepass ? 'OnePass Savings' : 'Your Savings'}
+            </Text>
             <Text style={styles.promoValue}>-${basketDiscount.toFixed(2)}</Text>
           </View>
         )}
-        {totalDiscount > 0 && (
-          <View style={styles.totalSummary}>
-            <Text style={styles.totalLabel}>Discounted Subtotal:</Text>
-            <Text style={styles.totalValue}>${discountedSubtotal.toFixed(2)}</Text>
-          </View>
-        )}
+      </ScrollView>
 
-        <View style={styles.totalSummary}>
-          <Text style={styles.totalLabel}>GST included (1/11):</Text>
-          <Text style={styles.totalValue}>${gstIncluded.toFixed(2)}</Text>
-        </View>
+      {/* Fixed bottom panel — always visible regardless of list length */}
+      <View style={[styles.bottomPanel, { paddingBottom: Math.max(Spacing.xl, insets.bottom + Spacing.md) }]}>
         {hasSurcharge && (
           <View style={styles.totalSummary}>
             <Text style={styles.surchargeLabel}>{selectedPayment} surcharge (1.5%):</Text>
@@ -232,14 +227,11 @@ export default function CheckoutScreen({ navigation }: any) {
           </View>
         )}
         <View style={[styles.totalSummary, styles.grandTotal]}>
-          <Text style={styles.grandTotalLabel}>Total:</Text>
+          <Text style={styles.grandTotalLabel}>Total (inc. GST):</Text>
           <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
         </View>
-      </ScrollView>
 
-      {/* Fixed bottom panel — always visible regardless of list length */}
-      <View style={[styles.bottomPanel, { paddingBottom: Math.max(Spacing.xl, insets.bottom + Spacing.md) }]}>
-        <Text style={styles.sectionTitle}>Payment Method</Text>
+        <Text style={[styles.sectionTitle, { marginTop: Spacing.md }]}>Payment Method</Text>
 
         <View style={styles.paymentRow}>
           {PAYMENT_METHODS.map((method) => (
@@ -325,12 +317,12 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: Colors.border,
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.sm,
   },
   totalSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.xs,
   },
   totalLabel: {
     ...Typography.body,

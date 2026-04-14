@@ -38,12 +38,12 @@ async function mergeReturns(order: any): Promise<any> {
 
     if (status !== 200 || !data?.pageContent) return order;
 
-    // Collect returned productIds from all RETURN t-logs whose ID starts with this orderId
+    // Collect RETURN t-logs whose ID starts with this orderId
     // (our naming convention: `${orderId}-ret-${timestamp}`)
+    const returnTlogs = data.pageContent.filter((t: any) => t.id?.startsWith(`${order.id}-ret-`));
     const returnedQtys: Record<string, number> = {}; // productId → total returned qty
 
-    for (const tlog of data.pageContent) {
-      if (!tlog.id?.startsWith(`${order.id}-ret-`)) continue;
+    for (const tlog of returnTlogs) {
       const items = tlog.tlog?.items ?? tlog.tlogData?.[0]?.tlog?.items ?? [];
       for (const item of items) {
         if (!item.isReturn) continue;
@@ -68,7 +68,14 @@ async function mergeReturns(order: any): Promise<any> {
       };
     });
 
-    return { ...order, orderLines: updatedLines };
+    // Sum tender amounts from all return t-logs to get total refunded amount
+    const refundedTotal = returnTlogs.reduce((sum: number, tlog: any) => {
+      const tenders = tlog.tlog?.tenders ?? tlog.tlogData?.[0]?.tlog?.tenders ?? [];
+      const refundTenders = tenders.filter((t: any) => t.usage === 'REFUND');
+      return sum + refundTenders.reduce((s: number, t: any) => s + (t.tenderAmount?.amount ?? 0), 0);
+    }, 0);
+
+    return { ...order, orderLines: updatedLines, refundedTotal };
   } catch {
     // TDM unavailable — return order as-is
     return order;

@@ -47,6 +47,7 @@ interface BspOrder {
   payments?: { amount?: number }[];
   openDate?: string;
   createdDate?: string;
+  refundedTotal?: number;
 }
 
 function mapBspOrder(bsp: BspOrder): Order {
@@ -67,7 +68,9 @@ function mapBspOrder(bsp: BspOrder): Order {
   }));
   const total = bsp.payments?.[0]?.amount
     ?? items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const refundedTotal = items.reduce((s, i) => s + i.price * i.refundedQty, 0) * 1.10;
+  // Use TDM-derived refundedTotal from BFF if available, otherwise derive from line quantities
+  const refundedTotal = bsp.refundedTotal
+    ?? items.reduce((s, i) => s + i.price * i.refundedQty, 0);
   const allRefunded = items.length > 0 && items.every((i) => i.refundedQty >= i.quantity);
   const anyRefunded = items.some((i) => i.refundedQty > 0);
   return {

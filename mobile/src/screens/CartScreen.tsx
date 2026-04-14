@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -48,7 +47,6 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 };
 
 export default function CartScreen({ navigation }: any) {
-  const insets = useSafeAreaInsets();
   const items = useCartStore((state) => state.items);
   const total = useCartStore((state) => state.total());
   const removeItem = useCartStore((state) => state.removeItem);
@@ -384,7 +382,7 @@ export default function CartScreen({ navigation }: any) {
       )}
 
       {/* Footer — always visible */}
-      <View style={[styles.footer, { paddingBottom: Math.max(Spacing.md, insets.bottom) }]}>
+      <View style={styles.footer}>
         {items.length > 0 && totalDiscount > 0 && (
           <View style={styles.savingsRow}>
             <Text style={styles.savingsLabel}>

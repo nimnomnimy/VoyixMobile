@@ -26,8 +26,6 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   const storeName = useSettingsStore((state) => state.storeName);
   const order = useOrderStore((state) => state.orders.find((o) => o.id === orderId));
 
-  const [wantsEmail, setWantsEmail] = useState(false);
-  const [showInput, setShowInput] = useState(false);
   const [email, setEmail] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -107,59 +105,33 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
         {/* Email receipt section */}
         {emailReceiptsEnabled && !emailSent && (
           <View style={styles.emailSection}>
-            {/* Toggle: does the customer want an email receipt? */}
-            <TouchableOpacity
-              style={styles.emailToggle}
-              onPress={() => {
-                const next = !wantsEmail;
-                setWantsEmail(next);
-                setEmail('');
-                if (next) {
-                  // Mount the input only after the touch event fully releases
-                  // so iOS doesn't steal focus away immediately.
-                  requestAnimationFrame(() => setShowInput(true));
-                } else {
-                  setShowInput(false);
-                }
-              }}
-            >
-              <Ionicons
-                name={wantsEmail ? 'checkbox' : 'square-outline'}
-                size={22}
-                color={wantsEmail ? Colors.primary : Colors.textLight}
+            <Text style={styles.emailLabel}>Email receipt to customer</Text>
+            <View style={styles.emailRow}>
+              <TextInput
+                style={styles.emailInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="customer@email.com"
+                placeholderTextColor={Colors.textLight}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="send"
+                onSubmitEditing={handleSendReceipt}
+                editable={!emailSending}
               />
-              <Text style={styles.emailToggleLabel}>Email receipt to customer</Text>
-            </TouchableOpacity>
-
-            {showInput && (
-              <View style={styles.emailRow}>
-                <TextInput
-                  style={styles.emailInput}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="customer@email.com"
-                  placeholderTextColor={Colors.textLight}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoFocus
-                  returnKeyType="send"
-                  onSubmitEditing={handleSendReceipt}
-                  editable={!emailSending}
-                />
-                <TouchableOpacity
-                  style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
-                  onPress={handleSendReceipt}
-                  disabled={emailSending || !email}
-                >
-                  {emailSending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Ionicons name="send" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+              <TouchableOpacity
+                style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
+                onPress={handleSendReceipt}
+                disabled={emailSending || !email}
+              >
+                {emailSending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={16} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -251,20 +223,14 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: Spacing.md,
   },
-  emailToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
-  },
-  emailToggleLabel: {
-    fontSize: 15,
-    color: Colors.text,
+  emailLabel: {
+    fontSize: 13,
+    color: Colors.textLight,
+    marginBottom: Spacing.sm,
   },
   emailRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginTop: Spacing.sm,
   },
   emailInput: {
     flex: 1,

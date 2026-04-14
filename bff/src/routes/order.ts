@@ -324,10 +324,10 @@ export default async function orderRoutes(app: FastifyInstance) {
       returnFullOrders: true,
       sort: { column: 'CreatedDate', direction: 'Desc' },
     };
-    const { status, data } = await ncrSiteRequest(`${ORDER_BASE}/find?pageSize=50`, {
-      method: 'POST',
-      body,
-    });
+    const { status, data } = await ncrSiteRequest<{ pageContent?: any[]; [k: string]: any }>(
+      `${ORDER_BASE}/find?pageSize=50`,
+      { method: 'POST', body },
+    );
     assertOk(status, 'list orders');
 
     // Merge TDM return data onto each order's lines in parallel

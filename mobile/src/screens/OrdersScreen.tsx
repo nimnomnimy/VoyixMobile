@@ -120,8 +120,12 @@ export default function OrdersScreen({ navigation }: any) {
     setRefreshing(false);
   }, [fetchBspOrders]);
 
+  const searchCode = search.includes('/receipt/')
+    ? decodeURIComponent(search.split('/receipt/').pop() ?? search)
+    : search;
   const filtered = orders.filter((o) =>
-    o.id.toLowerCase().includes(search.toLowerCase()),
+    o.id.toLowerCase().includes(searchCode.toLowerCase()) ||
+    (o.bspOrderId ?? '').toLowerCase().includes(searchCode.toLowerCase()),
   );
 
   const handleCameraPress = async () => {
@@ -140,7 +144,9 @@ export default function OrdersScreen({ navigation }: any) {
     if (scanned) return;
     setScanned(true);
     setScannerOpen(false);
-    const found = orders.find((o) => o.id === data || o.bspOrderId === data);
+    // Strip receipt URL to bare order ID, e.g. https://…/receipt/ORDER_ID → ORDER_ID
+    const code = data.includes('/receipt/') ? decodeURIComponent(data.split('/receipt/').pop() ?? data) : data;
+    const found = orders.find((o) => o.id === code || o.bspOrderId === code);
     if (found) {
       // Suspended orders go straight to OrderDetail where Resume is available.
       // Completed/refunded orders also go to OrderDetail for returns.

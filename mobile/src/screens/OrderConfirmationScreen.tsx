@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  ScrollView,
+  InteractionManager,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +29,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
 
   const [wantsEmail, setWantsEmail] = useState(false);
   const [email, setEmail] = useState('');
+  const emailInputRef = useRef<any>(null);
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
@@ -70,9 +73,14 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.successIcon}>
           <Text style={styles.checkmark}>✓</Text>
         </View>
@@ -103,7 +111,15 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
             {/* Toggle: does the customer want an email receipt? */}
             <TouchableOpacity
               style={styles.emailToggle}
-              onPress={() => { setWantsEmail((v) => !v); setEmail(''); }}
+              onPress={() => {
+                setWantsEmail((v) => !v);
+                setEmail('');
+                if (!wantsEmail) {
+                  InteractionManager.runAfterInteractions(() => {
+                    setTimeout(() => emailInputRef.current?.focus(), 150);
+                  });
+                }
+              }}
             >
               <Ionicons
                 name={wantsEmail ? 'checkbox' : 'square-outline'}
@@ -113,35 +129,33 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
               <Text style={styles.emailToggleLabel}>Email receipt to customer</Text>
             </TouchableOpacity>
 
-            {wantsEmail && (
-              <View style={styles.emailRow}>
-                <TextInput
-                  style={styles.emailInput}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="customer@email.com"
-                  placeholderTextColor={Colors.textLight}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSendReceipt}
-                  editable={!emailSending}
-                  autoFocus
-                />
-                <TouchableOpacity
-                  style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
-                  onPress={handleSendReceipt}
-                  disabled={emailSending || !email}
-                >
-                  {emailSending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Ionicons name="send" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={[styles.emailRow, !wantsEmail && { display: 'none' }]}>
+              <TextInput
+                style={styles.emailInput}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="customer@email.com"
+                placeholderTextColor={Colors.textLight}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="send"
+                onSubmitEditing={handleSendReceipt}
+                editable={!emailSending}
+                ref={emailInputRef}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
+                onPress={handleSendReceipt}
+                disabled={emailSending || !email}
+              >
+                {emailSending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={16} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -151,7 +165,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
             <Text style={styles.emailSentText}>Receipt sent to {email}</Text>
           </View>
         )}
-      </View>
+      </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
         <TouchableOpacity
@@ -174,10 +188,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
   },
   successIcon: {
     width: 100,

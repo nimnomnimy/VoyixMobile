@@ -12,7 +12,7 @@ import { ncrSiteRequest } from './lib/ncrClient.js';
 
 // BFF self-hosted images — served from /images/{itemId}.jpg
 // Update BFF_URL if deploying to a different host
-const BFF_URL = process.env.BFF_PUBLIC_URL ?? 'https://voyix-mobile-bff.onrender.com';
+const BFF_URL = process.env.BFF_PUBLIC_URL ?? 'https://voyixmobile.onrender.com';
 const CDN = `${BFF_URL}/images`;
 
 const ITEM_IMAGES: { id: string; imageUrl: string }[] = [

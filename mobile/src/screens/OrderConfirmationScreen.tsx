@@ -165,10 +165,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xl,
+    paddingTop: Spacing.xl * 2,
+    paddingBottom: Spacing.xl,
   },
   successIcon: {
     width: 100,

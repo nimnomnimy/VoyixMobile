@@ -33,7 +33,10 @@
     },
     "plugins": [],
     "updates": {
-      "url": "https://u.expo.dev/bcc705f0-abca-424a-926a-52acdb21dd22"
+      "url": "https://u.expo.dev/bcc705f0-abca-424a-926a-52acdb21dd22",
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     },
     "runtimeVersion": "1",
     "extra": {

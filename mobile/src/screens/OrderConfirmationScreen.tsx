@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import QRCodeSvg from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radius } from '../theme';
@@ -27,6 +28,8 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   const [email, setEmail] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+
+  const qrValue = order?.bspOrderId ?? orderId.toString();
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
@@ -73,81 +76,82 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
       showsVerticalScrollIndicator={false}
       automaticallyAdjustKeyboardInsets
     >
-        <View style={styles.successIcon}>
-          <Text style={styles.checkmark}>✓</Text>
+      {/* QR code */}
+      <View style={styles.qrContainer}>
+        <QRCodeSvg value={qrValue} size={180} />
+      </View>
+
+      <Text style={styles.title}>Order Confirmed!</Text>
+      <Text style={styles.subtitle}>Thank you for your purchase</Text>
+
+      <View style={styles.orderDetails}>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Order ID</Text>
+          <Text style={styles.detailValue} numberOfLines={2} adjustsFontSizeToFit>
+            {orderId.toString()}
+          </Text>
         </View>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Amount</Text>
+          <Text style={styles.detailValue}>${(total as number).toFixed(2)}</Text>
+        </View>
+        <View style={[styles.detailRow, styles.detailRowLast]}>
+          <Text style={styles.detailLabel}>Time</Text>
+          <Text style={styles.detailValue}>{new Date().toLocaleTimeString()}</Text>
+        </View>
+      </View>
 
-        <Text style={styles.title}>Order Confirmed!</Text>
-        <Text style={styles.subtitle}>Thank you for your purchase</Text>
-
-        <View style={styles.orderDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Order ID</Text>
-            <Text style={styles.detailValue} numberOfLines={1}>
-              ...{orderId.toString().slice(-10)}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Amount</Text>
-            <Text style={styles.detailValue}>${(total as number).toFixed(2)}</Text>
-          </View>
-          <View style={[styles.detailRow, styles.detailRowLast]}>
-            <Text style={styles.detailLabel}>Time</Text>
-            <Text style={styles.detailValue}>{new Date().toLocaleTimeString()}</Text>
+      {/* Email receipt section */}
+      {emailReceiptsEnabled && !emailSent && (
+        <View style={styles.emailSection}>
+          <Text style={styles.emailLabel}>Email receipt to customer</Text>
+          <View style={styles.emailRow}>
+            <TextInput
+              style={styles.emailInput}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="customer@email.com"
+              placeholderTextColor={Colors.textLight}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="send"
+              onSubmitEditing={handleSendReceipt}
+              editable={!emailSending}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
+              onPress={handleSendReceipt}
+              disabled={emailSending || !email}
+            >
+              {emailSending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={16} color="#fff" />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
+      )}
 
-        {/* Email receipt section */}
-        {emailReceiptsEnabled && !emailSent && (
-          <View style={styles.emailSection}>
-            <Text style={styles.emailLabel}>Email receipt to customer</Text>
-            <View style={styles.emailRow}>
-              <TextInput
-                style={styles.emailInput}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="customer@email.com"
-                placeholderTextColor={Colors.textLight}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="send"
-                onSubmitEditing={handleSendReceipt}
-                editable={!emailSending}
-              />
-              <TouchableOpacity
-                style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
-                onPress={handleSendReceipt}
-                disabled={emailSending || !email}
-              >
-                {emailSending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="send" size={16} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {emailSent && (
-          <View style={styles.emailSentBanner}>
-            <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-            <Text style={styles.emailSentText}>Receipt sent to {email}</Text>
-          </View>
-        )}
-
-        <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-            }}
-          >
-            <Text style={styles.buttonText}>New Transaction</Text>
-          </TouchableOpacity>
+      {emailSent && (
+        <View style={styles.emailSentBanner}>
+          <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+          <Text style={styles.emailSentText}>Receipt sent to {email}</Text>
         </View>
-      </ScrollView>
+      )}
+
+      <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => {
+            navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+          }}
+        >
+          <Text style={styles.buttonText}>New Transaction</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -160,51 +164,46 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl * 2,
+    paddingTop: Spacing.xl,
     paddingBottom: Spacing.xl,
   },
-  successIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.success,
-    justifyContent: 'center',
+  qrContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.lg,
     alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  checkmark: {
-    fontSize: 50,
-    color: Colors.background,
-    fontWeight: 'bold',
+    justifyContent: 'center',
   },
   title: {
     ...Typography.h2,
     color: Colors.text,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs ?? 4,
   },
   subtitle: {
     ...Typography.body,
     color: Colors.textLight,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   orderDetails: {
     width: '100%',
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   detailRowLast: { borderBottomWidth: 0 },
-  detailLabel: { ...Typography.body, color: Colors.textLight },
+  detailLabel: { fontSize: 13, color: Colors.textLight },
   detailValue: {
-    ...Typography.body,
+    fontSize: 13,
     color: Colors.text,
     fontWeight: '600',
     flex: 1,

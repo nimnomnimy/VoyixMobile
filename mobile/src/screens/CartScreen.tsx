@@ -268,9 +268,7 @@ export default function CartScreen({ navigation }: any) {
                 style={styles.loyaltyChipLogo as ImageStyle}
               />
             ) : (
-              <Text style={styles.loyaltyChipText}>
-                {type === 'teamMember' ? 'TM' : 'OP'}
-              </Text>
+              <Text style={styles.loyaltyChipText}>{CARD_LABEL[type]}</Text>
             )}
             <Text style={styles.loyaltyChipX}>✕</Text>
           </TouchableOpacity>
@@ -805,7 +803,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   keypadKeyBlank: { backgroundColor: 'transparent' },
-  keypadKeyText: { fontSize: 22, fontWeight: '500' as const, color: Colors.text },
+  keypadKeyText: { fontSize: 22, fontWeight: '500' as const, color: Colors.text, textAlign: 'center' as const, textAlignVertical: 'center' as const, includeFontPadding: false },
   keypadActions: { flexDirection: 'row', gap: Spacing.md },
   keypadCancel: {
     flex: 1,

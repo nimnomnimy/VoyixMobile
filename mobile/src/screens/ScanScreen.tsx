@@ -749,6 +749,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '500' as const,
     color: Colors.text,
+    textAlign: 'center' as const,
+    textAlignVertical: 'center' as const,
+    includeFontPadding: false,
   },
   keypadActions: {
     flexDirection: 'row',

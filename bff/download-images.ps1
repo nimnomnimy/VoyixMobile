@@ -1,5 +1,19 @@
 # Run this from c:\VoyixMobile\bff\
 # Downloads product images from Unsplash and saves to public\images\
+#
+# If you get SSL errors, run this first in the same PowerShell window:
+#   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+# Force TLS 1.2 and bypass cert validation (needed on some corporate networks)
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+add-type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAll : ICertificatePolicy {
+    public bool CheckValidationResult(ServicePoint sp, X509Certificate cert, WebRequest req, int problem) { return true; }
+}
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAll
 
 $outDir = ".\public\images"
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
@@ -45,16 +59,25 @@ $items = @(
 )
 
 $ok = 0; $fail = 0
+$wc = New-Object System.Net.WebClient
+$wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
 foreach ($item in $items) {
-  $dest = "$outDir\$($item.id).jpg"
+  $dest = (Resolve-Path $outDir).Path + "\$($item.id).jpg"
   try {
-    Invoke-WebRequest -Uri $item.url -OutFile $dest -UseBasicParsing -TimeoutSec 15
-    Write-Host "OK  $($item.id.PadRight(5))"
+    $wc.DownloadFile($item.url, $dest)
+    $size = (Get-Item $dest).Length
+    Write-Host "OK  $($item.id.PadRight(5))  ($size bytes)"
     $ok++
   } catch {
-    Write-Host "ERR $($item.id.PadRight(5)) - $_"
+    Write-Host "ERR $($item.id.PadRight(5))  - $($_.Exception.Message)"
     $fail++
   }
 }
 
 Write-Host "`n$ok downloaded, $fail failed"
+Write-Host "`nNext steps:"
+Write-Host "  git add bff/public/images/"
+Write-Host "  git commit -m 'feat: add product images'"
+Write-Host "  git push"
+Write-Host "  cd bff && npx tsx src/seed-item-attributes.ts"

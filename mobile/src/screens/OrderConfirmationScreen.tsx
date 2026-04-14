@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,8 +28,28 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   const [email, setEmail] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
-  const qrValue = order?.bspOrderId ?? orderId.toString();
+  // Save receipt to BFF on mount so the QR code links to a hosted page
+  useEffect(() => {
+    if (!order) return;
+    bff.post<{ url: string }>('/api/receipt', {
+      orderId: order.id,
+      timestamp: order.timestamp,
+      items: order.items.map((i) => ({
+        name: i.name,
+        quantity: i.quantity,
+        price: i.price,
+        effectivePrice: i.effectivePrice,
+      })),
+      total: order.total,
+      surcharge: order.surcharge,
+      paymentMethod: order.paymentMethod,
+      storeName,
+    }).then((res) => setReceiptUrl(res.url)).catch(() => {/* fall back to orderId QR */});
+  }, []);
+
+  const qrValue = receiptUrl ?? order?.bspOrderId ?? orderId.toString();
 
   const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 

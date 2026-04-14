@@ -2,7 +2,7 @@
   "expo": {
     "name": "VoyixMobile",
     "slug": "voyix-mobile",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -35,9 +35,7 @@
     "updates": {
       "url": "https://u.expo.dev/bcc705f0-abca-424a-926a-52acdb21dd22"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1",
     "extra": {
       "eas": {
         "projectId": "bcc705f0-abca-424a-926a-52acdb21dd22"

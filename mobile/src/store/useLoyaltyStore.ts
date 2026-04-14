@@ -17,6 +17,7 @@ interface LoyaltyState {
   onepass: LoyaltyAccount | null;
   loyaltyAdded: boolean;
   setCard: (type: LoyaltyCardType, cardNumber: string) => boolean; // returns true if replaced
+  removeCard: (type: LoyaltyCardType) => void;
   clearAll: () => void;
   setLoyaltyAdded: (val: boolean) => void; // kept for backward compat
 }
@@ -62,6 +63,14 @@ export const useLoyaltyStore = create<LoyaltyState>((set, get) => ({
       });
 
     return wasAlreadySet;
+  },
+
+  removeCard: (type) => {
+    set((prev) => {
+      const updated = { ...prev, [type]: null };
+      const anyLeft = updated.flybuys !== null || updated.teamMember !== null || updated.onepass !== null;
+      return { ...updated, loyaltyAdded: anyLeft };
+    });
   },
 
   clearAll: () => set({ flybuys: null, teamMember: null, onepass: null, loyaltyAdded: false }),

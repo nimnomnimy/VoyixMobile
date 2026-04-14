@@ -20,6 +20,13 @@ interface CatalogItem {
 }
 
 const CATALOG: CatalogItem[] = [
+  // Demo items — short codes for quick entry during demos
+  { id: '1', name: 'Anko Wireless Earbuds',       price: 29.00, category: 'Tech & Gaming' },
+  { id: '2', name: "Men's Regular Fit Crew Tee",  price: 10.00, category: 'Mens'          },
+  { id: '3', name: 'Ceramic Mug Set of 4',        price: 14.00, category: 'Home & Living' },
+  { id: '4', name: 'Bluey Hollow Easter Egg 40g', price:  3.00, category: 'Easter'        },
+  { id: '5', name: "Kids' Stripe PJ Set",         price: 14.00, category: 'Kids & Baby'   },
+  { id: '6', name: 'Non-Stick Frypan 28cm',       price: 28.00, category: 'Home & Living' },
   // Womens
   { id: 'w001', name: 'Sleeveless Satin Lace V-Neck Midi Dress', price: 28.00, category: 'Womens', barcode: '9300601000001' },
   { id: 'w002', name: 'Long Sleeve Collared Mini Dress',          price: 28.00, category: 'Womens', barcode: '9300601000002' },

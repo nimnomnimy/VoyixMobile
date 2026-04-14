@@ -1,10 +1,6 @@
-/**
- * useCatalog — fetches live catalog items from the BFF (NCR Voyix Catalog API).
- * Falls back to the hardcoded local catalog if BFF is unreachable or returns no results.
- */
-import { useState, useEffect, useRef } from 'react';
-import { bff, BffError } from '../lib/bffClient';
-import { CatalogItem, CATALOG, LOCAL_IMAGES } from '../data/catalog';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { bff } from '../lib/bffClient';
+import { CatalogItem, LOCAL_IMAGES } from '../data/catalog';
 
 interface BspItemDetail {
   itemCode?: string | { value: string };
@@ -42,36 +38,22 @@ function normaliseBspItem(item: BspItemDetail, priceMap: Record<string, number>)
   const id = normaliseItemCode(item.itemCode);
   const name = normaliseDescription(item.shortDescription) || id;
   const barcode = item.packageIdentifiers?.[0]?.value;
-  // Prefer BSP-hosted image, fall back to bundled local asset
   const image: string | number | undefined = item.imageUrls?.[0] ?? LOCAL_IMAGES[id] ?? undefined;
   const category = item.departmentId ?? 'General';
   const price = priceMap[id] ?? 0;
-
   return { id, name, price, image, barcode, category };
 }
 
 export function useCatalog(query: string, category: string) {
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [usingLocal, setUsingLocal] = useState(false);
+  const [error, setError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
-      void fetchItems();
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, category]);
-
-  async function fetchItems() {
+  const fetchItems = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
-      // Build query string
       const params = new URLSearchParams({ pageSize: '40' });
       if (query) params.set('q', query);
 
@@ -82,17 +64,12 @@ export function useCatalog(query: string, category: string) {
 
       let bspItems = catalogResp.itemDetails ?? [];
 
-      // Filter by category locally (BSP doesn't support dept filter in basic search)
       if (category !== 'All') {
         bspItems = bspItems.filter(
           (i) => (i.departmentId ?? '').toLowerCase() === category.toLowerCase()
         );
       }
 
-      // BSP is reachable — show its results even if empty for this filter.
-      // Never show local catalog when BSP is live.
-
-      // Batch fetch prices for the visible items
       const itemCodes = bspItems.map((i) => normaliseItemCode(i.itemCode)).filter(Boolean);
       let priceMap: Record<string, number> = {};
       if (itemCodes.length > 0) {
@@ -103,37 +80,28 @@ export function useCatalog(query: string, category: string) {
           );
           for (const entry of priceResp.itemPrices ?? []) {
             const code = entry.itemCode ?? '';
-            // BSP returns price as a plain BigDecimal (number), not { amount }
             const p = (entry as any).price;
             priceMap[code] = typeof p === 'number' ? p : (p?.amount ?? entry.unitPrice ?? 0);
           }
         } catch {
-          // prices unavailable — items will show $0; acceptable degradation
+          // prices unavailable — items show $0
         }
       }
 
       setItems(bspItems.map((i) => normaliseBspItem(i, priceMap)));
-      setUsingLocal(false);
-    } catch (e) {
-      // BFF unreachable — fall back to hardcoded catalog
-      applyLocalFallback(query, category);
+    } catch {
+      setItems([]);
+      setError(true);
     } finally {
       setLoading(false);
     }
-  }
+  }, [query, category]);
 
-  function applyLocalFallback(q: string, cat: string) {
-    const filtered = CATALOG.filter((item) => {
-      const matchCat = cat === 'All' || item.category === cat;
-      const matchQ   = !q || item.name.toLowerCase().includes(q.toLowerCase());
-      return matchCat && matchQ;
-    }).map((item) => ({
-      ...item,
-      image: item.image ?? LOCAL_IMAGES[item.id] ?? undefined,
-    }));
-    setItems(filtered);
-    setUsingLocal(true);
-  }
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { void fetchItems(); }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [fetchItems]);
 
-  return { items, loading, usingLocal };
+  return { items, loading, error, retry: fetchItems };
 }

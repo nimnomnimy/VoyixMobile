@@ -9,7 +9,9 @@ export interface OrderLineItem extends CartItem {
 export interface Order {
   id: string;
   bspOrderId?: string;  // BSP order ID (same as id for live orders)
-  total: number;
+  total: number;        // grand total including GST + surcharge
+  surcharge?: number;   // card surcharge amount (if any)
+  paymentMethod?: string;
   refundedTotal: number;
   itemCount: number;
   timestamp: string;

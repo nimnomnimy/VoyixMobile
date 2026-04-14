@@ -20,7 +20,6 @@ import { bff } from '../lib/bffClient';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 import {
   CatalogItem,
-  CATALOG,
   CLOTHING_CATEGORIES,
   SIZES,
   COLORS,
@@ -154,19 +153,56 @@ export default function CartScreen({ navigation }: any) {
     }, 2500);
   };
 
-  const resolveCode = (code: string, onNotFound?: () => void) => {
+  const resolveCode = async (code: string, onNotFound?: () => void) => {
+    // Check loyalty cards first
     const cardType = LOYALTY_CARD_MAP[code];
     if (cardType) {
       triggerLoyalty(cardType, code);
       return;
     }
-    const found = CATALOG.find((item) => item.barcode === code || item.id === code);
-    if (found) {
-      handleAddPress(found);
-    } else {
-      Alert.alert('Not found', `Code "${code}" not in catalog`);
-      onNotFound?.();
-    }
+
+    // Try BFF barcode lookup (covers both short item codes and full barcodes)
+    try {
+      const resp = await bff.get<{ itemDetails: any[]; totalCount: number }>(
+        `/api/catalog/items?barcode=${encodeURIComponent(code)}&pageSize=10`
+      );
+      const bspItems = resp.itemDetails ?? [];
+
+      // Find exact barcode or item code match
+      const match = bspItems.find((i: any) => {
+        const itemCode = typeof i.itemCode === 'string' ? i.itemCode : i.itemCode?.value;
+        const barcodes: string[] = (i.packageIdentifiers ?? []).map((p: any) => p.value);
+        return itemCode === code || barcodes.includes(code);
+      });
+
+      if (match) {
+        // Fetch price for this item
+        const itemCode = typeof match.itemCode === 'string' ? match.itemCode : match.itemCode?.value;
+        let price = 0;
+        try {
+          const priceResp = await bff.post<{ itemPrices: any[] }>('/api/catalog/prices', { itemCodes: [itemCode] });
+          const p = priceResp.itemPrices?.[0]?.price;
+          price = typeof p === 'number' ? p : (p?.amount ?? 0);
+        } catch { /* use $0 if price fetch fails */ }
+
+        const name = typeof match.shortDescription === 'string'
+          ? match.shortDescription
+          : match.shortDescription?.values?.[0]?.value ?? itemCode;
+
+        handleAddPress({
+          id: itemCode,
+          name,
+          price,
+          image: match.imageUrls?.[0],
+          barcode: code,
+          category: match.departmentId ?? 'General',
+        });
+        return;
+      }
+    } catch { /* BFF unreachable */ }
+
+    Alert.alert('Not found', `Code "${code}" not recognised`);
+    onNotFound?.();
   };
 
   const handleCameraPress = async () => {
@@ -204,9 +240,7 @@ export default function CartScreen({ navigation }: any) {
     }
   };
 
-  const searchResults = searchQuery.length > 0
-    ? CATALOG.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
-    : [];
+  const searchResults: CatalogItem[] = [];
 
   const sizes = attributeItem ? (SIZES[attributeItem.category] ?? []) : [];
 
@@ -220,33 +254,27 @@ export default function CartScreen({ navigation }: any) {
   const renderLoyaltyHeader = () => {
     if (activeCards.length === 0) return null;
     return (
-      <>
-        {activeCards.map(({ type, account, color, label }) => (
-          <View key={type} style={[styles.itemRow, styles.loyaltyCardRow]}>
-            <View style={[styles.loyaltyCardIcon, { backgroundColor: color }]}>
-              {type === 'flybuys' ? (
-                <Image
-                  source={require('../../assets/flybuys-logo.png')}
-                  style={styles.loyaltyCardLogo as ImageStyle}
-                />
-              ) : (
-                <Text style={styles.loyaltyCardIconText}>
-                  {type === 'teamMember' ? 'TM' : 'OP'}
-                </Text>
-              )}
-            </View>
-            <View style={styles.itemDetails}>
-              <Text style={styles.itemName}>{label}</Text>
-              <Text style={styles.loyaltyCardMember}>
-                {account!.memberName === 'Looking up...' ? 'Looking up...' : account!.memberName}
+      <View style={styles.loyaltyRow}>
+        {activeCards.map(({ type, account, color }) => (
+          <TouchableOpacity
+            key={type}
+            style={[styles.loyaltyChip, { backgroundColor: color }]}
+            onPress={() => removeCard(type)}
+          >
+            {type === 'flybuys' ? (
+              <Image
+                source={require('../../assets/flybuys-logo.png')}
+                style={styles.loyaltyChipLogo as ImageStyle}
+              />
+            ) : (
+              <Text style={styles.loyaltyChipText}>
+                {type === 'teamMember' ? 'TM' : 'OP'}
               </Text>
-            </View>
-            <TouchableOpacity onPress={() => removeCard(type)} style={styles.deleteButton}>
-              <Text style={styles.deleteButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+            )}
+            <Text style={styles.loyaltyChipX}>✕</Text>
+          </TouchableOpacity>
         ))}
-      </>
+      </View>
     );
   };
 
@@ -257,11 +285,22 @@ export default function CartScreen({ navigation }: any) {
         <View style={styles.searchInputWrap}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search to add items..."
+            placeholder="Search or scan barcode..."
             value={searchQuery}
             onChangeText={setSearchQuery}
+            onSubmitEditing={() => {
+              const code = searchQuery.trim();
+              if (!code) return;
+              // If it looks like a barcode (numeric / no spaces) resolve directly
+              // without waiting for the search results overlay
+              if (/^\S+$/.test(code)) {
+                setSearchQuery('');
+                resolveCode(code);
+              }
+            }}
             placeholderTextColor={Colors.textLight}
-            returnKeyType="search"
+            returnKeyType="done"
+            blurOnSubmit={false}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
@@ -558,32 +597,38 @@ const styles = StyleSheet.create({
   iconButtonBlue: { backgroundColor: Colors.secondary },
   iconButtonText: { fontSize: 20 },
 
-  // Loyalty card rows (rendered as pinned cart items)
-  loyaltyCardRow: {
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.secondary,
-  },
-  loyaltyCardIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.sm,
+  // Loyalty card strip — single row of chips
+  loyaltyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingTop: 8,
+    paddingBottom: 4,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  loyaltyCardLogo: {
-    width: 44,
-    height: 22,
+  loyaltyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    gap: 5,
+  },
+  loyaltyChipLogo: {
+    width: 42,
+    height: 16,
     resizeMode: 'contain',
   },
-  loyaltyCardIconText: {
+  loyaltyChipText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700' as const,
   },
-  loyaltyCardMember: {
-    fontSize: 12,
-    color: Colors.textLight,
-    marginTop: 2,
+  loyaltyChipX: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '700' as const,
   },
 
   // Search results
@@ -629,20 +674,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: Colors.surface,
     marginHorizontal: Spacing.md,
-    marginTop: Spacing.md,
+    marginTop: 6,
     borderRadius: Radius.md,
-    padding: Spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     gap: Spacing.sm,
   },
   itemImage: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: Radius.sm,
     backgroundColor: Colors.border,
   },
   itemDetails: { flex: 1 },
-  itemName: { fontSize: 13, fontWeight: '600' as const, color: Colors.text },
+  itemName: { fontSize: 12, fontWeight: '600' as const, color: Colors.text, lineHeight: 16 },
   attributeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   badge: {
     backgroundColor: Colors.secondary,

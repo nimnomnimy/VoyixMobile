@@ -12,10 +12,15 @@ import { useCartStore } from '../store/useCartStore';
 import { useOrderStore } from '../store/useOrderStore';
 import { useLoyaltyStore } from '../store/useLoyaltyStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { bff, BffError } from '../lib/bffClient';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 
 const PAYMENT_METHODS = ['Cash', 'Card', 'Mobile Payment'];
+
+// Card surcharge rate (applies to Card and Mobile Payment when surcharges are enabled)
+const SURCHARGE_RATE = 0.015; // 1.5%
+const SURCHARGE_METHODS = new Set(['Card', 'Mobile Payment']);
 
 const BSP_PAYMENT_TYPE: Record<string, 'Cash' | 'CreditDebit' | 'Other'> = {
   Cash: 'Cash',
@@ -39,6 +44,7 @@ export default function CheckoutScreen({ navigation }: any) {
   const flybuys = useLoyaltyStore((state) => state.flybuys);
   const teamMember = useLoyaltyStore((state) => state.teamMember);
   const onepass = useLoyaltyStore((state) => state.onepass);
+  const surchargesEnabled = useSettingsStore((state) => state.surchargesEnabled);
 
   // Evaluate promotions on mount via BSP Promotions Engine
   useEffect(() => {
@@ -70,8 +76,14 @@ export default function CheckoutScreen({ navigation }: any) {
   const totalDiscount = parseFloat(
     (lineDiscounts.reduce((s, d) => s + d.discountAmount, 0) + basketDiscount).toFixed(2),
   );
+  // Prices are GST-inclusive — no further ×1.10 needed
   const discountedSubtotal = parseFloat((total - totalDiscount).toFixed(2));
-  const grandTotal = parseFloat((Math.max(discountedSubtotal, 0) * 1.10).toFixed(2));
+  const gstIncluded = parseFloat((Math.max(discountedSubtotal, 0) / 11).toFixed(2));
+  const hasSurcharge = surchargesEnabled && SURCHARGE_METHODS.has(selectedPayment);
+  const surchargeAmount = hasSurcharge
+    ? parseFloat((Math.max(discountedSubtotal, 0) * SURCHARGE_RATE).toFixed(2))
+    : 0;
+  const grandTotal = parseFloat((Math.max(discountedSubtotal, 0) + surchargeAmount).toFixed(2));
 
   const handleCheckout = async () => {
     setProcessing(true);
@@ -122,6 +134,8 @@ export default function CheckoutScreen({ navigation }: any) {
         id: result.orderId,
         bspOrderId: result.orderId,
         total: grandTotal,
+        surcharge: surchargeAmount > 0 ? surchargeAmount : undefined,
+        paymentMethod: selectedPayment,
         refundedTotal: 0,
         itemCount: items.reduce((sum, i) => sum + i.quantity, 0),
         timestamp: new Date().toLocaleString(),
@@ -197,9 +211,15 @@ export default function CheckoutScreen({ navigation }: any) {
         )}
 
         <View style={styles.totalSummary}>
-          <Text style={styles.totalLabel}>GST (10%):</Text>
-          <Text style={styles.totalValue}>${(Math.max(discountedSubtotal, 0) * 0.10).toFixed(2)}</Text>
+          <Text style={styles.totalLabel}>GST included (1/11):</Text>
+          <Text style={styles.totalValue}>${gstIncluded.toFixed(2)}</Text>
         </View>
+        {hasSurcharge && (
+          <View style={styles.totalSummary}>
+            <Text style={styles.surchargeLabel}>{selectedPayment} surcharge (1.5%):</Text>
+            <Text style={styles.surchargeValue}>${surchargeAmount.toFixed(2)}</Text>
+          </View>
+        )}
         <View style={[styles.totalSummary, styles.grandTotal]}>
           <Text style={styles.grandTotalLabel}>Total:</Text>
           <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
@@ -328,6 +348,15 @@ const styles = StyleSheet.create({
   grandTotalValue: {
     ...Typography.h3,
     color: Colors.primary,
+  },
+  surchargeLabel: {
+    ...Typography.body,
+    color: Colors.warning,
+  },
+  surchargeValue: {
+    ...Typography.body,
+    color: Colors.warning,
+    fontWeight: '600' as const,
   },
   paymentOption: {
     flexDirection: 'row',

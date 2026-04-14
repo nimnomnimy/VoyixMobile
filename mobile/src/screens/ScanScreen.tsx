@@ -21,7 +21,6 @@ import { useLoyaltyStore, LoyaltyCardType } from '../store/useLoyaltyStore';
 import { Colors, Spacing, Radius } from '../theme';
 import {
   CatalogItem,
-  CATALOG,
   CATEGORIES,
   CLOTHING_CATEGORIES,
   SIZES,
@@ -89,7 +88,7 @@ export default function ScanScreen() {
     toastTimer.current = setTimeout(() => { setToastName(''); setToastVariant(''); }, 2600);
   };
 
-  const { items: filteredItems, loading: catalogLoading, usingLocal } = useCatalog(searchQuery, selectedCategory);
+  const { items: filteredItems, loading: catalogLoading, error: catalogError, retry: retryFetch } = useCatalog(searchQuery, selectedCategory);
 
   // Batch fetch inventory when catalog items change
   useEffect(() => {
@@ -156,21 +155,46 @@ export default function ScanScreen() {
     setTimeout(() => setLoyaltyVisible(false), 3000);
   };
 
-  const resolveCode = (code: string, onNotFound?: () => void) => {
+  const resolveCode = async (code: string, onNotFound?: () => void) => {
     const cardType = LOYALTY_CARD_MAP[code];
     if (cardType) {
       triggerLoyalty(cardType, code);
       return;
     }
-    const found = CATALOG.find(
-      (item) => item.barcode === code || item.id === code
-    );
-    if (found) {
-      handleAddPress(found);
-    } else {
-      showAlert('Not found', `Code "${code}" not in catalog`);
-      onNotFound?.();
-    }
+    try {
+      const resp = await bff.get<{ itemDetails: any[]; totalCount: number }>(
+        `/api/catalog/items?barcode=${encodeURIComponent(code)}&pageSize=10`
+      );
+      const bspItems = resp.itemDetails ?? [];
+      const match = bspItems.find((i: any) => {
+        const itemCode = typeof i.itemCode === 'string' ? i.itemCode : i.itemCode?.value;
+        const barcodes: string[] = (i.packageIdentifiers ?? []).map((p: any) => p.value);
+        return itemCode === code || barcodes.includes(code);
+      });
+      if (match) {
+        const itemCode = typeof match.itemCode === 'string' ? match.itemCode : match.itemCode?.value ?? code;
+        const name = typeof match.shortDescription === 'string'
+          ? match.shortDescription
+          : (match.shortDescription?.values?.[0]?.value ?? itemCode);
+        let price = 0;
+        try {
+          const priceResp = await bff.post<{ itemPrices?: any[] }>('/api/catalog/prices', { itemCodes: [itemCode] });
+          const entry = priceResp.itemPrices?.[0];
+          if (entry) price = typeof entry.price === 'number' ? entry.price : (entry.price?.amount ?? entry.unitPrice ?? 0);
+        } catch { /* price unavailable */ }
+        handleAddPress({
+          id: itemCode,
+          name,
+          price,
+          image: match.imageUrls?.[0],
+          barcode: code,
+          category: match.departmentId ?? 'General',
+        });
+        return;
+      }
+    } catch { /* BFF unreachable */ }
+    showAlert('Not found', `Code "${code}" not in catalog`);
+    onNotFound?.();
   };
 
   const handleBarcodeScan = ({ data }: { data: string }) => {
@@ -205,10 +229,13 @@ export default function ScanScreen() {
         <View style={styles.searchInputWrap}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products..."
+            placeholder="Search or scan barcode..."
             value={searchQuery}
             onChangeText={setSearchQuery}
+            onSubmitEditing={() => { /* debounce fires automatically via useEffect */ }}
             placeholderTextColor={Colors.textLight}
+            returnKeyType="search"
+            blurOnSubmit={false}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
@@ -246,18 +273,19 @@ export default function ScanScreen() {
         ))}
       </ScrollView>
 
-      {/* Local fallback banner */}
-      {usingLocal && (
-        <View style={styles.fallbackBanner}>
-          <Text style={styles.fallbackBannerText}>Showing local catalog — BSP catalog unavailable</Text>
-        </View>
-      )}
-
       {/* Product list */}
       {catalogLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading catalog…</Text>
+        </View>
+      ) : catalogError ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={48} color={Colors.textLight} />
+          <Text style={styles.errorText}>Cannot connect to catalog</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={retryFetch}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
@@ -535,14 +563,18 @@ const styles = StyleSheet.create({
   },
   addButtonDisabled: { backgroundColor: Colors.textLight },
   addButtonText: { color: '#fff', fontSize: 13, fontWeight: '600' as const },
-  fallbackBanner: {
-    backgroundColor: Colors.warning,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  fallbackBannerText: { fontSize: 11, color: Colors.text, textAlign: 'center' as const },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
   loadingText: { fontSize: 14, color: Colors.textLight },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.xl },
+  errorText: { fontSize: 16, color: Colors.textLight, textAlign: 'center' as const },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    marginTop: Spacing.sm,
+  },
+  retryButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' as const },
 
   // Attribute sheet
   attrOverlay: {

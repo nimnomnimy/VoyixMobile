@@ -2,13 +2,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
-import staticFiles from '@fastify/static';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { BspError } from './lib/errors.js';
 
 import catalogRoutes from './routes/catalog.js';
@@ -29,13 +23,6 @@ const app = Fastify({
 
 await app.register(cors, { origin: config.allowedOrigins });
 await app.register(jwt, { secret: config.jwtSecret });
-
-// Serve static product images from public/images/
-await app.register(staticFiles, {
-  root: path.join(__dirname, '..', 'public'),
-  prefix: '/',
-  decorateReply: false,
-});
 
 // Health check
 app.get('/health', async () => ({ ok: true, service: 'VoyixMobile BFF' }));

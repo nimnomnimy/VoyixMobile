@@ -13,6 +13,7 @@ import {
   Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useIsFocused } from '@react-navigation/native';
 import { useCartStore } from '../store/useCartStore';
 import { useLoyaltyStore, LoyaltyCardType } from '../store/useLoyaltyStore';
 import { bff } from '../lib/bffClient';
@@ -43,6 +44,7 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 };
 
 export default function CartScreen({ navigation }: any) {
+  const isFocused = useIsFocused();
   const items = useCartStore((state) => state.items);
   const total = useCartStore((state) => state.total());
   const removeItem = useCartStore((state) => state.removeItem);
@@ -276,7 +278,7 @@ export default function CartScreen({ navigation }: any) {
         blurOnSubmit={false}
         autoFocus
         showSoftInputOnFocus={false}
-        onBlur={() => setTimeout(() => searchInputRef.current?.focus(), 100)}
+        onBlur={() => { if (isFocused) setTimeout(() => searchInputRef.current?.focus(), 100); }}
       />
 
       {/* Cart items */}

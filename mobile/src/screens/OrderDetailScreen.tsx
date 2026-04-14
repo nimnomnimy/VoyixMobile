@@ -9,9 +9,12 @@ import {
   ImageStyle,
   ActivityIndicator,
   Modal,
+  TextInput,
   Clipboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import QRCode from 'qrcode';
+import QRCodeSvg from 'react-native-qrcode-svg';
 import { useWindowDimensions } from 'react-native';
 import { showAlert } from '../lib/webAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore, OrderLineItem } from '../store/useOrderStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { bff, BffError } from '../lib/bffClient';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 import { imageSource } from '../data/catalog';
@@ -34,9 +38,15 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const setBspOrderId = useCartStore((state) => state.setBspOrderId);
   const staffId = useAuthStore((state) => state.staffId) ?? 'unknown';
 
+  const emailReceiptsEnabled = useSettingsStore((state) => state.emailReceiptsEnabled);
+  const storeName = useSettingsStore((state) => state.storeName);
+
   const { width: screenWidth } = useWindowDimensions();
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
   const [refundMode, setRefundMode] = useState(false);
   const [refundProcessing, setRefundProcessing] = useState(false);
   const [refundQtys, setRefundQtys] = useState<Record<string, number>>({});
@@ -45,13 +55,39 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Generate QR code data URL whenever the order ID is known
-  useEffect(() => {
-    if (!order?.id) return;
-    QRCode.toDataURL(order.id, { width: 280, margin: 1, color: { dark: '#000', light: '#fff' } })
-      .then(setQrDataUrl)
-      .catch(() => {});
-  }, [order?.id]);
+  const handleSendReceipt = async () => {
+    if (!order) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim())) {
+      showAlert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    setEmailSending(true);
+    try {
+      await bff.post('/api/email/receipt', {
+        to: emailInput.trim(),
+        orderId: order.id,
+        timestamp: order.timestamp,
+        items: order.items.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+          effectivePrice: i.effectivePrice,
+        })),
+        total: order.total,
+        surcharge: order.surcharge,
+        paymentMethod: order.paymentMethod,
+        storeName,
+      });
+      setEmailSent(emailInput.trim());
+      setEmailModalVisible(false);
+      showAlert('Receipt sent', `Receipt emailed to ${emailInput.trim()}`);
+    } catch (error) {
+      const msg = error instanceof BffError ? error.message : 'Could not send email. Try again.';
+      showAlert('Email failed', msg);
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   if (!order) {
     return (
@@ -106,7 +142,10 @@ export default function OrderDetailScreen({ route, navigation }: any) {
           const calculated = parseFloat(
             Math.max(0, Math.min(remainingBalance - newBasketTotal, remainingBalance)).toFixed(2),
           );
-          setRefundAmount(calculated);
+          // If rounding leaves a tiny gap (< $0.01), snap to the full remaining balance
+          setRefundAmount(
+            remainingBalance - calculated < 0.01 ? remainingBalance : calculated,
+          );
         })
         .catch(() => {
           // Fallback: simple per-item calculation capped at remaining balance
@@ -462,16 +501,26 @@ export default function OrderDetailScreen({ route, navigation }: any) {
             </TouchableOpacity>
           </View>
         ) : !refundMode ? (
-          <TouchableOpacity
-            style={[styles.refundButton, order.status === 'refunded' && styles.buttonDisabled]}
-            onPress={handleStartRefund}
-            disabled={order.status === 'refunded'}
-          >
-            <Ionicons name="return-down-back-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.actionButtonText}>
-              {order.status === 'refunded' ? 'Fully Refunded' : 'Return Items'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.rowActions}>
+            <TouchableOpacity
+              style={[styles.refundButton, order.status === 'refunded' && styles.buttonDisabled]}
+              onPress={handleStartRefund}
+              disabled={order.status === 'refunded'}
+            >
+              <Ionicons name="return-down-back-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.actionButtonText}>
+                {order.status === 'refunded' ? 'Fully Refunded' : 'Return Items'}
+              </Text>
+            </TouchableOpacity>
+            {emailReceiptsEnabled && (
+              <TouchableOpacity
+                style={styles.emailReceiptButton}
+                onPress={() => { setEmailInput(''); setEmailModalVisible(true); }}
+              >
+                <Ionicons name="mail-outline" size={20} color={Colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
         ) : (
           <View style={styles.rowActions}>
             <TouchableOpacity
@@ -522,15 +571,12 @@ export default function OrderDetailScreen({ route, navigation }: any) {
                 ? 'Scan this code on any terminal to resume the transaction'
                 : 'Scan this code to open the order and process a return'}
             </Text>
-            {qrDataUrl ? (
-              <Image
-                source={{ uri: qrDataUrl }}
-                style={{ width: screenWidth * 0.65, height: screenWidth * 0.65 }}
-                resizeMode="contain"
-              />
-            ) : (
-              <ActivityIndicator size="large" color={Colors.primary} style={{ margin: Spacing.xl }} />
-            )}
+            <QRCodeSvg
+              value={order.bspOrderId ?? order.id}
+              size={Math.round(screenWidth * 0.62)}
+              color="#000"
+              backgroundColor="#fff"
+            />
             <Text style={styles.qrOrderId} numberOfLines={1}>
               {order.bspOrderId ?? order.id}
             </Text>
@@ -539,6 +585,59 @@ export default function OrderDetailScreen({ route, navigation }: any) {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Email receipt modal */}
+      <Modal
+        visible={emailModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEmailModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.qrBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            activeOpacity={1}
+            onPress={() => setEmailModalVisible(false)}
+          />
+          <View style={[styles.qrModal, { width: '90%' }]}>
+            <Text style={styles.qrTitle}>Send Receipt</Text>
+            <Text style={styles.qrSubtitle}>Enter the customer's email address</Text>
+            <View style={{ flexDirection: 'row', gap: Spacing.sm, width: '100%' }}>
+              <TextInput
+                style={[styles.emailInput, { flex: 1 }]}
+                value={emailInput}
+                onChangeText={setEmailInput}
+                placeholder="customer@email.com"
+                placeholderTextColor={Colors.textLight}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="send"
+                onSubmitEditing={handleSendReceipt}
+                editable={!emailSending}
+                autoFocus
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (emailSending || !emailInput) && styles.buttonDisabled]}
+                onPress={handleSendReceipt}
+                disabled={emailSending || !emailInput}
+              >
+                {emailSending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={16} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.qrCloseBtn} onPress={() => setEmailModalVisible(false)}>
+              <Text style={styles.qrCloseBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -654,10 +753,38 @@ const styles = StyleSheet.create({
   },
   rowActions: { flexDirection: 'row', gap: Spacing.md },
   refundButton: {
+    flex: 1,
     backgroundColor: Colors.secondary,
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailReceiptButton: {
+    width: 46,
+    height: 46,
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  sendButton: {
+    backgroundColor: Colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },

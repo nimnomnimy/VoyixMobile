@@ -19,6 +19,7 @@ import logRoutes from './routes/log.js';
 import loyaltyRoutes from './routes/loyalty.js';
 import promotionsRoutes from './routes/promotions.js';
 import inventoryRoutes from './routes/inventory.js';
+import emailRoutes from './routes/email.js';
 
 const app = Fastify({
   logger: {
@@ -46,6 +47,7 @@ await app.register(logRoutes,      { prefix: '/api/log' });
 await app.register(loyaltyRoutes,  { prefix: '/api/loyalty' });
 await app.register(promotionsRoutes, { prefix: '/api/promotions' });
 await app.register(inventoryRoutes, { prefix: '/api/inventory' });
+await app.register(emailRoutes,    { prefix: '/api/email' });
 
 // Global error handler — never expose raw BSP errors to mobile
 app.setErrorHandler((err, _req, reply) => {

@@ -22,4 +22,11 @@ export const config = {
     sharedKey: require_env('BSP_SHARED_KEY'),
     secretKey: require_env('BSP_SECRET_KEY'),
   },
+  email: {
+    smtpHost: process.env.EMAIL_SMTP_HOST ?? null,
+    smtpPort: parseInt(process.env.EMAIL_SMTP_PORT ?? '587'),
+    smtpUser: process.env.EMAIL_SMTP_USER ?? null,
+    smtpPass: process.env.EMAIL_SMTP_PASS ?? null,
+    fromName: process.env.EMAIL_FROM_NAME ?? process.env.EMAIL_SMTP_USER ?? 'Kmart',
+  },
 };

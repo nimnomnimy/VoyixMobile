@@ -72,11 +72,25 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
   syncFromBsp: (bspOrders) => {
     const existing = get().orders;
+    const bspById = new Map(bspOrders.map((o) => [o.id, o]));
     const existingIds = new Set(existing.map((o) => o.bspOrderId ?? o.id));
-    // Only add orders not already tracked locally
+
+    // Update existing orders with fresher BSP data (refundedTotal, status, items)
+    const updated = existing.map((local) => {
+      const bsp = bspById.get(local.bspOrderId ?? local.id);
+      if (!bsp) return local;
+      // Prefer BSP data for refund state; never downgrade a suspended local order
+      return {
+        ...local,
+        total: bsp.total > 0 ? bsp.total : local.total,
+        refundedTotal: Math.max(local.refundedTotal, bsp.refundedTotal),
+        status: local.status === 'suspended' ? 'suspended' : bsp.status,
+        items: bsp.items.length > 0 ? bsp.items : local.items,
+      };
+    });
+
+    // Prepend orders from BSP that aren't tracked locally yet
     const newOrders = bspOrders.filter((o) => !existingIds.has(o.id));
-    if (newOrders.length > 0) {
-      set({ orders: [...existing, ...newOrders] });
-    }
+    set({ orders: [...newOrders, ...updated] });
   },
 }));

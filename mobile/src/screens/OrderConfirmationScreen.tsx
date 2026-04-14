@@ -1,14 +1,77 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radius } from '../theme';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { useOrderStore } from '../store/useOrderStore';
+import { bff, BffError } from '../lib/bffClient';
+import { showAlert } from '../lib/webAlert';
 
 export default function OrderConfirmationScreen({ route, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { orderId, total } = route.params;
 
+  const emailReceiptsEnabled = useSettingsStore((state) => state.emailReceiptsEnabled);
+  const storeName = useSettingsStore((state) => state.storeName);
+  const order = useOrderStore((state) => state.orders.find((o) => o.id === orderId));
+
+  const [wantsEmail, setWantsEmail] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+  const handleSendReceipt = async () => {
+    if (!isValidEmail(email)) {
+      showAlert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    if (!order) {
+      showAlert('Error', 'Order data not available.');
+      return;
+    }
+    setEmailSending(true);
+    try {
+      await bff.post('/api/email/receipt', {
+        to: email.trim(),
+        orderId: order.id,
+        timestamp: order.timestamp,
+        items: order.items.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+          effectivePrice: i.effectivePrice,
+        })),
+        total: order.total,
+        surcharge: order.surcharge,
+        paymentMethod: order.paymentMethod,
+        storeName,
+      });
+      setEmailSent(true);
+    } catch (error) {
+      const msg = error instanceof BffError ? error.message : 'Could not send email. Try again.';
+      showAlert('Email failed', msg);
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={styles.content}>
         <View style={styles.successIcon}>
           <Text style={styles.checkmark}>✓</Text>
@@ -19,40 +82,88 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
 
         <View style={styles.orderDetails}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Order ID:</Text>
-            <Text style={styles.detailValue}>{orderId}</Text>
+            <Text style={styles.detailLabel}>Order ID</Text>
+            <Text style={styles.detailValue} numberOfLines={1}>
+              ...{orderId.toString().slice(-10)}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Amount:</Text>
+            <Text style={styles.detailLabel}>Amount</Text>
             <Text style={styles.detailValue}>${(total as number).toFixed(2)}</Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Time:</Text>
-            <Text style={styles.detailValue}>
-              {new Date().toLocaleTimeString()}
-            </Text>
+          <View style={[styles.detailRow, styles.detailRowLast]}>
+            <Text style={styles.detailLabel}>Time</Text>
+            <Text style={styles.detailValue}>{new Date().toLocaleTimeString()}</Text>
           </View>
         </View>
 
-        <Text style={styles.receiptNote}>
-          A receipt has been sent to the terminal
-        </Text>
+        {/* Email receipt section */}
+        {emailReceiptsEnabled && !emailSent && (
+          <View style={styles.emailSection}>
+            {/* Toggle: does the customer want an email receipt? */}
+            <TouchableOpacity
+              style={styles.emailToggle}
+              onPress={() => { setWantsEmail((v) => !v); setEmail(''); }}
+            >
+              <Ionicons
+                name={wantsEmail ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={wantsEmail ? Colors.primary : Colors.textLight}
+              />
+              <Text style={styles.emailToggleLabel}>Email receipt to customer</Text>
+            </TouchableOpacity>
+
+            {wantsEmail && (
+              <View style={styles.emailRow}>
+                <TextInput
+                  style={styles.emailInput}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="customer@email.com"
+                  placeholderTextColor={Colors.textLight}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendReceipt}
+                  editable={!emailSending}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.sendButton, (emailSending || !email) && styles.sendButtonDisabled]}
+                  onPress={handleSendReceipt}
+                  disabled={emailSending || !email}
+                >
+                  {emailSending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="send" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
+        {emailSent && (
+          <View style={styles.emailSentBanner}>
+            <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+            <Text style={styles.emailSentText}>Receipt sent to {email}</Text>
+          </View>
+        )}
       </View>
 
       <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
         <TouchableOpacity
           style={styles.button}
           onPress={() => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Main' }],
-            });
+            navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
           }}
         >
-          <Text style={styles.buttonText}>Back to Main</Text>
+          <Text style={styles.buttonText}>New Transaction</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -97,7 +208,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.lg,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   detailRow: {
     flexDirection: 'row',
@@ -106,20 +217,69 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  detailLabel: {
-    ...Typography.body,
-    color: Colors.textLight,
-  },
+  detailRowLast: { borderBottomWidth: 0 },
+  detailLabel: { ...Typography.body, color: Colors.textLight },
   detailValue: {
     ...Typography.body,
     color: Colors.text,
     fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: Spacing.md,
   },
-  receiptNote: {
-    ...Typography.caption,
-    color: Colors.textLight,
-    textAlign: 'center',
+
+  emailSection: {
+    width: '100%',
+    marginBottom: Spacing.md,
   },
+  emailToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  emailToggleLabel: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  emailRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  emailInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  sendButton: {
+    backgroundColor: Colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonDisabled: { opacity: 0.4 },
+
+  emailSentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    width: '100%',
+  },
+  emailSentText: { fontSize: 13, color: Colors.success, fontWeight: '500' as const },
+
   footer: {
     paddingHorizontal: Spacing.lg,
   },

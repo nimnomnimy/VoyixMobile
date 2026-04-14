@@ -75,11 +75,14 @@ function mapBspOrder(bsp: BspOrder): Order {
   const isSuspended = bsp.status === 'InProgress';
   const allRefunded = !isSuspended && items.length > 0 && items.every((i) => i.refundedQty >= i.quantity);
   const anyRefunded = !isSuspended && items.some((i) => i.refundedQty > 0);
+  // When all items are returned, refundedTotal must equal total regardless of
+  // what TDM tenders recorded (promo-adjusted amounts can differ from the actual payment).
+  const resolvedRefundedTotal = allRefunded ? total : refundedTotal;
   return {
     id,
     bspOrderId: id,
     total,
-    refundedTotal,
+    refundedTotal: resolvedRefundedTotal,
     itemCount: items.reduce((s, i) => s + i.quantity, 0),
     timestamp: bsp.openDate ?? bsp.createdDate ?? new Date().toLocaleString(),
     status: isSuspended ? 'suspended' : allRefunded ? 'refunded' : anyRefunded ? 'partially_refunded' : 'completed',

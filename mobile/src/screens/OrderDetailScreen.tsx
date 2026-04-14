@@ -394,7 +394,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
       </ScrollView>
 
       {/* Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(32, insets.bottom + Spacing.md) }]}>
         {order.status === 'suspended' ? (
           <View style={styles.rowActions}>
             <TouchableOpacity style={styles.cancelButton} onPress={handleCancelSuspended}>
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
 
   footer: {
     padding: Spacing.lg,
-    paddingBottom: 32,
+    paddingBottom: 0,
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,

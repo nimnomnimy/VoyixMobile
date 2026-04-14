@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -29,6 +30,7 @@ const BSP_PAYMENT_TYPE: Record<string, 'Cash' | 'CreditDebit' | 'Other'> = {
 };
 
 export default function CheckoutScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [selectedPayment, setSelectedPayment] = useState<string>(PAYMENT_METHODS[0]);
   const [processing, setProcessing] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
@@ -248,7 +250,7 @@ export default function CheckoutScreen({ navigation }: any) {
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(Spacing.xl, insets.bottom + Spacing.md) }]}>
         <TouchableOpacity
           style={styles.cancelButton}
           onPress={() => navigation.goBack()}
@@ -398,7 +400,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingBottom: 0,
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,

@@ -18,13 +18,11 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore } from '../store/useCartStore';
 import { useLoyaltyStore, LoyaltyCardType } from '../store/useLoyaltyStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius } from '../theme';
 import {
   CatalogItem,
   CATEGORIES,
-  CLOTHING_CATEGORIES,
-  SIZES,
-  COLORS,
   imageSource,
 } from '../data/catalog';
 import { useCatalog } from '../hooks/useCatalog';
@@ -46,19 +44,14 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 };
 
 export default function ScanScreen() {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const searchQueryRef = useRef('');
-  const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scanStartTime = useRef<number>(0);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [loyaltyVisible, setLoyaltyVisible] = useState(false);
   const [loyaltyType, setLoyaltyType] = useState<LoyaltyCardType>('flybuys');
   const [loyaltyReplaced, setLoyaltyReplaced] = useState(false);
-  const [attributeItem, setAttributeItem] = useState<CatalogItem | null>(null);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
   const [keypadVisible, setKeypadVisible] = useState(false);
   const [keypadValue, setKeypadValue] = useState('');
   const [stockMap, setStockMap] = useState<Record<string, { isOutOfStock: boolean; isLowStock: boolean }>>({});
@@ -102,40 +95,19 @@ export default function ScanScreen() {
     ).then(setStockMap).catch(() => {});
   }, [filteredItems.map((i) => i.id).join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isClothing = (item: CatalogItem) => CLOTHING_CATEGORIES.includes(item.category);
-
   const handleAddPress = (item: CatalogItem) => {
-    if (isClothing(item)) {
-      setAttributeItem(item);
-      setSelectedSize('');
-      setSelectedColor('');
-    } else {
-      commitAdd(item);
-    }
-  };
-
-  const commitAdd = (item: CatalogItem, size?: string, color?: string) => {
-    const cartKey = size && color ? `${item.id}-${size}-${color}` : item.id;
     addItem({
       id: item.id,
-      cartKey,
+      cartKey: item.id,
       name: item.name,
       price: item.price,
       quantity: 1,
       image: item.image,
       barcode: item.barcode,
-      size,
-      color,
+      size: item.size,
+      color: item.color,
     });
-    showToast(item.name, size && color ? `${size} · ${color}` : undefined);
-  };
-
-  const handleAttributeConfirm = () => {
-    if (!attributeItem) return;
-    if (!selectedSize) { showAlert('Select a size'); return; }
-    if (!selectedColor) { showAlert('Select a colour'); return; }
-    setAttributeItem(null);
-    commitAdd(attributeItem, selectedSize, selectedColor);
+    showToast(item.name);
   };
 
   const handleCameraPress = async () => {
@@ -223,10 +195,8 @@ export default function ScanScreen() {
     }
   };
 
-  const sizes = attributeItem ? (SIZES[attributeItem.category] ?? []) : [];
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top || Spacing.md }]}>
       {/* Search + Camera */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputWrap}>
@@ -234,36 +204,8 @@ export default function ScanScreen() {
             style={styles.searchInput}
             placeholder="Search items..."
             value={searchQuery}
-            onChangeText={(text) => {
-              const prev = searchQueryRef.current;
-              // Track time of each keystroke to detect scanner vs human
-              const now = Date.now();
-              if (prev === '') scanStartTime.current = now;
-              const timeSinceLast = now - scanStartTime.current;
-              searchQueryRef.current = text;
-              setSearchQuery(text);
-              if (scanDebounce.current) clearTimeout(scanDebounce.current);
-              // If typing is slow (>300ms between chars), this is a human — don't auto-resolve
-              if (prev.length > 0 && timeSinceLast > 300) return;
-              // Otherwise set a short debounce — if input stops, treat as complete scan
-              if (/^\S+$/.test(text.trim()) && text.length >= 3) {
-                scanDebounce.current = setTimeout(() => {
-                  const code = searchQueryRef.current.trim();
-                  if (!code) return;
-                  searchQueryRef.current = '';
-                  setSearchQuery('');
-                  void resolveCode(code);
-                }, 150);
-              }
-            }}
-            onSubmitEditing={() => {
-              if (scanDebounce.current) clearTimeout(scanDebounce.current);
-              const code = searchQueryRef.current.trim();
-              if (!code) return;
-              searchQueryRef.current = '';
-              setSearchQuery('');
-              void resolveCode(code);
-            }}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={() => { /* useCatalog debounces the search query */ }}
             placeholderTextColor={Colors.textLight}
             returnKeyType="search"
             blurOnSubmit={false}
@@ -324,9 +266,6 @@ export default function ScanScreen() {
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                   <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  {isClothing(item) && (
-                    <Text style={styles.attributeHint}>Select size & colour</Text>
-                  )}
                   {outOfStock && <Text style={styles.outOfStockLabel}>Out of stock</Text>}
                   {lowStock   && !outOfStock && <Text style={styles.lowStockLabel}>Low stock</Text>}
                 </View>
@@ -350,55 +289,6 @@ export default function ScanScreen() {
           })}
         </ScrollView>
       )}
-
-      {/* Attribute picker modal */}
-      <Modal
-        visible={!!attributeItem}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setAttributeItem(null)}
-      >
-        <View style={styles.attrOverlay}>
-          <View style={styles.attrSheet}>
-            <View style={styles.attrHeader}>
-              <Text style={styles.attrTitle} numberOfLines={2}>{attributeItem?.name}</Text>
-              <TouchableOpacity onPress={() => setAttributeItem(null)}>
-                <Text style={styles.attrClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.attrLabel}>Size</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.attrRow}>
-              {sizes.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.optionChip, selectedSize === s && styles.optionChipActive]}
-                  onPress={() => setSelectedSize(s)}
-                >
-                  <Text style={[styles.optionText, selectedSize === s && styles.optionTextActive]}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.attrLabel}>Colour</Text>
-            <View style={styles.colorGrid}>
-              {COLORS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.optionChip, selectedColor === c && styles.optionChipActive]}
-                  onPress={() => setSelectedColor(c)}
-                >
-                  <Text style={[styles.optionText, selectedColor === c && styles.optionTextActive]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity style={styles.confirmButton} onPress={handleAttributeConfirm}>
-              <Text style={styles.confirmButtonText}>Add to Cart</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Manual code entry keypad */}
       <Modal visible={keypadVisible} transparent animationType="slide" onRequestClose={() => setKeypadVisible(false)}>
@@ -504,7 +394,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-    paddingTop: Spacing.md,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -575,7 +464,6 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1 },
   itemName: { fontSize: 13, fontWeight: '600' as const, color: Colors.text },
   itemPrice: { fontSize: 13, color: Colors.primary, fontWeight: '700' as const, marginTop: 4 },
-  attributeHint: { fontSize: 11, color: Colors.textLight, marginTop: 2 },
   outOfStockLabel: { fontSize: 11, color: Colors.error, fontWeight: '600' as const, marginTop: 2 },
   lowStockLabel: { fontSize: 11, color: Colors.warning, fontWeight: '600' as const, marginTop: 2 },
   addButton: {
@@ -598,49 +486,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   retryButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' as const },
-
-  // Attribute sheet
-  attrOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  attrSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: Spacing.lg,
-    paddingBottom: 40,
-  },
-  attrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-  },
-  attrTitle: { fontSize: 15, fontWeight: '700' as const, color: Colors.text, flex: 1, marginRight: Spacing.md },
-  attrClose: { fontSize: 18, color: Colors.textLight },
-  attrLabel: { fontSize: 13, fontWeight: '600' as const, color: Colors.textLight, marginBottom: Spacing.sm },
-  attrRow: { flexGrow: 0, marginBottom: Spacing.lg },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
-  optionChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  optionChipActive: { borderColor: Colors.primary, backgroundColor: '#FFF0F0' },
-  optionText: { fontSize: 13, color: Colors.text },
-  optionTextActive: { color: Colors.primary, fontWeight: '600' as const },
-  confirmButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-  },
-  confirmButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' as const },
 
   // Loyalty
   loyaltyOverlay: {

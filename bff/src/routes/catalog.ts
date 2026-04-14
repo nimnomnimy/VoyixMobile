@@ -39,10 +39,20 @@ const ITEM_IMAGE_MAP: Record<string, string> = {
   'y001': `${IMAGE_BASE}/images/y001.jpg`,
 };
 
+/**
+ * Returns base item code for image lookup.
+ * Variant codes like 'w001-S-BLK' share the base item's image ('w001').
+ */
+function baseCode(code: string): string {
+  const parts = code.split('-');
+  return parts.length >= 3 ? parts[0] : code;
+}
+
 function fetchItemImages(itemCodes: string[]): Record<string, string> {
   const imageMap: Record<string, string> = {};
   for (const code of itemCodes) {
-    if (ITEM_IMAGE_MAP[code]) imageMap[code] = ITEM_IMAGE_MAP[code];
+    const img = ITEM_IMAGE_MAP[code] ?? ITEM_IMAGE_MAP[baseCode(code)];
+    if (img) imageMap[code] = img;
   }
   return imageMap;
 }

@@ -9,7 +9,6 @@ import {
   ImageStyle,
   TextInput,
   Modal,
-  ScrollView,
   Alert,
   Animated,
 } from 'react-native';
@@ -20,9 +19,6 @@ import { bff } from '../lib/bffClient';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 import {
   CatalogItem,
-  CLOTHING_CATEGORIES,
-  SIZES,
-  COLORS,
   imageSource,
 } from '../data/catalog';
 
@@ -70,9 +66,6 @@ export default function CartScreen({ navigation }: any) {
   const [loyaltyToast, setLoyaltyToast] = useState<{ type: LoyaltyCardType; replaced: boolean } | null>(null);
   const toastAnim = useRef(new Animated.Value(80)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [attributeItem, setAttributeItem] = useState<CatalogItem | null>(null);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
   const [permission, requestPermission] = useCameraPermissions();
   const [discountMap, setDiscountMap] = useState<Record<string, { amount: number; name: string }>>({});
   const [basketDiscount, setBasketDiscount] = useState(0);
@@ -107,40 +100,17 @@ export default function CartScreen({ navigation }: any) {
 
   const totalDiscount = Object.values(discountMap).reduce((s, d) => s + d.amount, 0) + basketDiscount;
 
-  const isClothing = (item: CatalogItem) => CLOTHING_CATEGORIES.includes(item.category);
-
   const handleAddPress = (item: CatalogItem) => {
-    if (isClothing(item)) {
-      setAttributeItem(item);
-      setSelectedSize('');
-      setSelectedColor('');
-    } else {
-      commitAdd(item);
-    }
-  };
-
-  const commitAdd = (item: CatalogItem, size?: string, color?: string) => {
-    const cartKey = size && color ? `${item.id}-${size}-${color}` : item.id;
     addItem({
       id: item.id,
-      cartKey,
+      cartKey: item.id,
       name: item.name,
       price: item.price,
       quantity: 1,
       image: item.image,
       barcode: item.barcode,
-      size,
-      color,
     });
     setSearchQuery('');
-  };
-
-  const handleAttributeConfirm = () => {
-    if (!attributeItem) return;
-    if (!selectedSize) { Alert.alert('Select a size'); return; }
-    if (!selectedColor) { Alert.alert('Select a colour'); return; }
-    setAttributeItem(null);
-    commitAdd(attributeItem, selectedSize, selectedColor);
   };
 
   const triggerLoyalty = (type: LoyaltyCardType, cardNumber: string) => {
@@ -242,8 +212,6 @@ export default function CartScreen({ navigation }: any) {
       setKeypadValue((v) => v + key);
     }
   };
-
-  const sizes = attributeItem ? (SIZES[attributeItem.category] ?? []) : [];
 
   const LOYALTY_CARDS: { type: LoyaltyCardType; account: typeof flybuys; color: string; label: string }[] = [
     { type: 'flybuys',    account: flybuys,     color: '#007AC2', label: 'Flybuys'      },
@@ -433,52 +401,6 @@ export default function CartScreen({ navigation }: any) {
           </Text>
         </Animated.View>
       )}
-
-      {/* Attribute picker modal */}
-      <Modal
-        visible={!!attributeItem}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setAttributeItem(null)}
-      >
-        <View style={styles.attrOverlay}>
-          <View style={styles.attrSheet}>
-            <View style={styles.attrHeader}>
-              <Text style={styles.attrTitle} numberOfLines={2}>{attributeItem?.name}</Text>
-              <TouchableOpacity onPress={() => setAttributeItem(null)}>
-                <Text style={styles.attrClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.attrLabel}>Size</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.attrRow}>
-              {sizes.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.optionChip, selectedSize === s && styles.optionChipActive]}
-                  onPress={() => setSelectedSize(s)}
-                >
-                  <Text style={[styles.optionText, selectedSize === s && styles.optionTextActive]}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Text style={styles.attrLabel}>Colour</Text>
-            <View style={styles.colorGrid}>
-              {COLORS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.optionChip, selectedColor === c && styles.optionChipActive]}
-                  onPress={() => setSelectedColor(c)}
-                >
-                  <Text style={[styles.optionText, selectedColor === c && styles.optionTextActive]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity style={styles.confirmButton} onPress={handleAttributeConfirm}>
-              <Text style={styles.confirmButtonText}>Add to Cart</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Keypad modal */}
       <Modal visible={keypadVisible} transparent animationType="slide" onRequestClose={() => setKeypadVisible(false)}>
@@ -709,49 +631,6 @@ const styles = StyleSheet.create({
   },
   toastBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' as const },
   toastMessage: { flex: 1, color: Colors.text, fontSize: 13, fontWeight: '600' as const },
-
-  // Attribute sheet
-  attrOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  attrSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: Spacing.lg,
-    paddingBottom: 40,
-  },
-  attrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-  },
-  attrTitle: { fontSize: 15, fontWeight: '700' as const, color: Colors.text, flex: 1, marginRight: Spacing.md },
-  attrClose: { fontSize: 18, color: Colors.textLight },
-  attrLabel: { fontSize: 13, fontWeight: '600' as const, color: Colors.textLight, marginBottom: Spacing.sm },
-  attrRow: { flexGrow: 0, marginBottom: Spacing.lg },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
-  optionChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  optionChipActive: { borderColor: Colors.primary, backgroundColor: '#FFF0F0' },
-  optionText: { fontSize: 13, color: Colors.text },
-  optionTextActive: { color: Colors.primary, fontWeight: '600' as const },
-  confirmButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-  },
-  confirmButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' as const },
 
   // Keypad
   keypadOverlay: {

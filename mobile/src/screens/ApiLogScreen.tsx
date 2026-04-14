@@ -45,7 +45,7 @@ const FEATURE_DEFS: FeatureDef[] = [
     feature: 'Product Catalog',
     bspService: 'Catalog API',
     matchPath: '/catalog/v2/item-details',
-    note: 'GET /api/catalog/items — item search and barcode lookup. Local catalog only shown when BFF is unreachable.',
+    note: 'GET /api/catalog/items — item search and barcode lookup via BSP Catalog v2.',
   },
   {
     feature: 'Pricing',
@@ -73,29 +73,15 @@ const FEATURE_DEFS: FeatureDef[] = [
   },
   {
     feature: 'Returns / Refunds',
-    bspService: 'Order Management API',
-    matchPath: null,
-    staticStatus: 'partial',
-    note: 'POST /api/order/:id/refund marks lines as Returned and submits a return t-log. Status shown after a return is performed.',
-  },
-  {
-    feature: 'Site Info',
-    bspService: 'Sites API',
-    matchPath: '/sites/',
-    note: 'GET /api/sites/current — site configuration fetched on BFF startup.',
+    bspService: 'TDM',
+    matchPath: '/transaction-document',
+    note: 'Return t-log submitted to TDM with transactionType RETURN. Return state derived on every order fetch by cross-referencing TDM t-logs prefixed with the order ID.',
   },
   {
     feature: 'Loyalty',
-    bspService: 'Loyalty API',
-    matchPath: '/loyalty/',
-    note: 'Card scan identifies member via POST /api/loyalty/identify. Points accrued via POST /api/loyalty/accrue after checkout.',
-  },
-  {
-    feature: 'Staff Authentication',
-    bspService: 'Local JWT',
-    matchPath: null,
-    staticStatus: 'partial',
-    note: 'JWT issued locally with demo staff IDs (1001, 1002, 9001). NCR IAM not integrated — any PIN ≥ 4 digits is accepted.',
+    bspService: 'CDM + Promotions API',
+    matchPath: '/cdm/',
+    note: 'Card scan looks up member via BSP CDM. Points accrued via POST /api/loyalty/accrue after checkout. Promotions evaluated via BSP Promotions API.',
   },
 ];
 

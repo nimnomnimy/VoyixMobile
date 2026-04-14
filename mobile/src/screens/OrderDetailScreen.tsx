@@ -8,8 +8,11 @@ import {
   Image,
   ImageStyle,
   ActivityIndicator,
+  Modal,
   Clipboard,
 } from 'react-native';
+import QRCode from 'qrcode';
+import { useWindowDimensions } from 'react-native';
 import { showAlert } from '../lib/webAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +34,9 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const setBspOrderId = useCartStore((state) => state.setBspOrderId);
   const staffId = useAuthStore((state) => state.staffId) ?? 'unknown';
 
+  const { width: screenWidth } = useWindowDimensions();
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrModalVisible, setQrModalVisible] = useState(false);
   const [refundMode, setRefundMode] = useState(false);
   const [refundProcessing, setRefundProcessing] = useState(false);
   const [refundQtys, setRefundQtys] = useState<Record<string, number>>({});
@@ -38,6 +44,14 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const [refundCalcLoading, setRefundCalcLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
+
+  // Generate QR code data URL whenever the order ID is known
+  useEffect(() => {
+    if (!order?.id) return;
+    QRCode.toDataURL(order.id, { width: 280, margin: 1, color: { dark: '#000', light: '#fff' } })
+      .then(setQrDataUrl)
+      .catch(() => {});
+  }, [order?.id]);
 
   if (!order) {
     return (
@@ -400,14 +414,12 @@ export default function OrderDetailScreen({ route, navigation }: any) {
               </View>
               <TouchableOpacity
                 style={styles.bspIdRow}
-                onPress={() => {
-                  Clipboard.setString(order.bspOrderId);
-                  showAlert('Copied', 'BSP Order ID copied to clipboard');
-                }}
+                onPress={() => setQrModalVisible(true)}
               >
-                <Text style={styles.bspIdLabel}>BSP Order ID</Text>
-                <Text style={styles.bspIdValue} numberOfLines={1}>{order.bspOrderId}</Text>
-                <Text style={styles.bspIdCopy}>Copy</Text>
+                <Ionicons name="qr-code-outline" size={16} color={Colors.primary} />
+                <Text style={styles.bspIdLabel}>Order ID</Text>
+                <Text style={styles.bspIdValue} numberOfLines={1}>{order.bspOrderId ?? order.id}</Text>
+                <Text style={styles.bspIdCopy}>Show QR</Text>
               </TouchableOpacity>
               {order.refundedTotal > 0 && (
                 <>
@@ -488,6 +500,46 @@ export default function OrderDetailScreen({ route, navigation }: any) {
           </View>
         )}
       </View>
+
+      {/* QR Code modal */}
+      <Modal
+        visible={qrModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setQrModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.qrBackdrop}
+          activeOpacity={1}
+          onPress={() => setQrModalVisible(false)}
+        >
+          <View style={styles.qrModal}>
+            <Text style={styles.qrTitle}>
+              {order.status === 'suspended' ? 'Scan to Resume' : 'Scan to Open'}
+            </Text>
+            <Text style={styles.qrSubtitle}>
+              {order.status === 'suspended'
+                ? 'Scan this code on any terminal to resume the transaction'
+                : 'Scan this code to open the order and process a return'}
+            </Text>
+            {qrDataUrl ? (
+              <Image
+                source={{ uri: qrDataUrl }}
+                style={{ width: screenWidth * 0.65, height: screenWidth * 0.65 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <ActivityIndicator size="large" color={Colors.primary} style={{ margin: Spacing.xl }} />
+            )}
+            <Text style={styles.qrOrderId} numberOfLines={1}>
+              {order.bspOrderId ?? order.id}
+            </Text>
+            <TouchableOpacity style={styles.qrCloseBtn} onPress={() => setQrModalVisible(false)}>
+              <Text style={styles.qrCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -636,4 +688,43 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textLight },
   actionButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' as const },
   buttonDisabled: { opacity: 0.4 },
+
+  qrBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrModal: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    marginHorizontal: Spacing.xl,
+    gap: Spacing.md,
+  },
+  qrTitle: {
+    ...Typography.h3,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  qrSubtitle: {
+    ...Typography.caption,
+    color: Colors.textLight,
+    textAlign: 'center',
+  },
+  qrOrderId: {
+    fontSize: 11,
+    color: Colors.textLight,
+    fontFamily: 'monospace',
+    textAlign: 'center',
+  },
+  qrCloseBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.md,
+    marginTop: Spacing.xs,
+  },
+  qrCloseBtnText: { color: '#fff', fontWeight: '600' as const, fontSize: 16 },
 });

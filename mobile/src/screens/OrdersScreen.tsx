@@ -137,11 +137,24 @@ export default function OrdersScreen({ navigation }: any) {
     if (scanned) return;
     setScanned(true);
     setScannerOpen(false);
-    const found = orders.find((o) => o.id === data);
+    const found = orders.find((o) => o.id === data || o.bspOrderId === data);
     if (found) {
+      // Suspended orders go straight to OrderDetail where Resume is available.
+      // Completed/refunded orders also go to OrderDetail for returns.
       navigation.navigate('OrderDetail', { orderId: found.id });
     } else {
-      Alert.alert('Not found', `No order with code "${data}"`);
+      // Not in local store — try fetching from BSP then navigate
+      setRefreshing(true);
+      fetchBspOrders().then(() => {
+        setRefreshing(false);
+        // Re-check after sync
+        const synced = (useOrderStore as any).getState().orders.find((o: Order) => o.id === data || o.bspOrderId === data);
+        if (synced) {
+          navigation.navigate('OrderDetail', { orderId: synced.id });
+        } else {
+          Alert.alert('Not found', `No order found for "${data.slice(0, 20)}"`);
+        }
+      });
     }
   };
 

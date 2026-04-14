@@ -441,7 +441,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
               {order.surcharge != null && order.surcharge > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={[styles.summaryLabel, { color: Colors.warning }]}>
-                    {order.paymentMethod ?? 'Card'} surcharge (1.5%)
+                    Surcharge (1.5%)
                   </Text>
                   <Text style={[styles.summaryValue, { color: Colors.warning }]}>
                     ${order.surcharge.toFixed(2)}

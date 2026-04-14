@@ -134,10 +134,11 @@ export default function OrderDetailScreen({ route, navigation }: any) {
     const resumeItems = order.items.slice();
 
     if (resumeBspOrderId) {
-      // Reactivate the BSP order (InProgress → OrderPlaced) so it becomes
-      // the active cart. Items already exist as BSP lines — no need to re-add.
+      // Reactivate BSP order (InProgress → OrderPlaced) and retrieve loyalty state
+      let loyalty: { flybuys?: any; teamMember?: any; onepass?: any } | null = null;
       try {
-        await bff.post(`/api/cart/${resumeBspOrderId}/reactivate`, {});
+        const result = await bff.post<{ loyalty?: any }>(`/api/cart/${resumeBspOrderId}/reactivate`, {});
+        loyalty = result.loyalty ?? null;
       } catch {
         // Continue anyway — cart will re-sync on next interaction
       }
@@ -149,6 +150,14 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         // Keep bspLineId so the cart knows about existing BSP lines
         addItem(cartItem);
       });
+      // Restore loyalty cards saved at suspend time
+      if (loyalty) {
+        const { useLoyaltyStore } = require('../store/useLoyaltyStore');
+        const ls = useLoyaltyStore.getState();
+        if (loyalty.flybuys)    ls.setCard('flybuys',    loyalty.flybuys.cardNumber);
+        if (loyalty.teamMember) ls.setCard('teamMember', loyalty.teamMember.cardNumber);
+        if (loyalty.onepass)    ls.setCard('onepass',    loyalty.onepass.cardNumber);
+      }
     } else {
       // Local-only suspended order — fresh cart
       clearCart();

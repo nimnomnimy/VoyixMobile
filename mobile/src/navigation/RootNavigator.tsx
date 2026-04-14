@@ -107,8 +107,16 @@ function MainTabs() {
         const orderItems = items.map((i) => ({ ...i, refundedQty: 0 }));
 
         if (bspOrderId) {
-          // BSP-backed suspend — PATCH to InProgress so any terminal can recall it
-          bff.post(`/api/cart/${bspOrderId}/suspend`, {})
+          // BSP-backed suspend — PATCH to InProgress and store loyalty state
+          // in BFF memory so any terminal can restore it on resume.
+          const { useLoyaltyStore: ls } = require('../store/useLoyaltyStore');
+          const loyaltyState = ls.getState();
+          const loyaltyPayload = {
+            flybuys:    loyaltyState.flybuys    ? { cardNumber: loyaltyState.flybuys.cardNumber,    accountId: loyaltyState.flybuys.accountId,    memberName: loyaltyState.flybuys.memberName    } : null,
+            teamMember: loyaltyState.teamMember ? { cardNumber: loyaltyState.teamMember.cardNumber, accountId: loyaltyState.teamMember.accountId, memberName: loyaltyState.teamMember.memberName } : null,
+            onepass:    loyaltyState.onepass    ? { cardNumber: loyaltyState.onepass.cardNumber,    accountId: loyaltyState.onepass.accountId,    memberName: loyaltyState.onepass.memberName    } : null,
+          };
+          bff.post(`/api/cart/${bspOrderId}/suspend`, loyaltyPayload)
             .catch(() => {}); // fire-and-forget; local suspend still happens
           suspendOrder({
             id: bspOrderId,

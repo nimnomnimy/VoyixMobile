@@ -14,6 +14,18 @@ import { assertOk } from '../lib/errors.js';
 
 const ORDER_BASE = '/order/3/orders/1';
 
+/**
+ * In-memory store for loyalty card state attached to suspended BSP orders.
+ * Keyed by bspOrderId. Lost on BFF restart but that's acceptable — the
+ * cashier just re-scans the card. Cross-terminal recall still works for items.
+ */
+interface SuspendedLoyalty {
+  flybuys?:    { cardNumber: string; accountId: string; memberName: string } | null;
+  teamMember?: { cardNumber: string; accountId: string; memberName: string } | null;
+  onepass?:    { cardNumber: string; accountId: string; memberName: string } | null;
+}
+const suspendedLoyalty = new Map<string, SuspendedLoyalty>();
+
 interface CartLineItem {
   itemCode: string;
   description: string;
@@ -118,7 +130,8 @@ export default async function cartRoutes(app: FastifyInstance) {
   /** Clear entire cart (cancel the BSP order). */
   app.delete<{ Params: { id: string } }>('/:id', async (req) => {
     const { id } = req.params;
-    const patch = { status: 'Cancelled' };
+    suspendedLoyalty.delete(id);
+    const patch = { status: 'Canceled' };
     const { status } = await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
       method: 'PATCH',
       body: patch,
@@ -128,22 +141,43 @@ export default async function cartRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Suspend a cart — PATCH BSP order to InProgress so it persists server-side
-   * and can be recalled from any terminal via /api/order/recent.
+   * Suspend a cart — PATCH BSP order to InProgress and store loyalty state
+   * in memory so it can be restored on any terminal that resumes the order.
    */
-  app.post<{ Params: { id: string } }>('/:id/suspend', async (req) => {
-    const { id } = req.params;
-    const { status } = await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
-      method: 'PATCH',
-      body: { status: 'InProgress' },
-    });
-    assertOk(status, 'suspend cart');
-    return { ok: true, orderId: id };
-  });
+  app.post<{ Params: { id: string }; Body: SuspendedLoyalty }>(
+    '/:id/suspend',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            flybuys:    { type: ['object', 'null'] },
+            teamMember: { type: ['object', 'null'] },
+            onepass:    { type: ['object', 'null'] },
+          },
+        },
+      },
+    },
+    async (req) => {
+      const { id } = req.params;
+      const { status } = await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
+        method: 'PATCH',
+        body: { status: 'InProgress' },
+      });
+      assertOk(status, 'suspend cart');
+      // Store loyalty state keyed by orderId
+      suspendedLoyalty.set(id, {
+        flybuys:    req.body.flybuys    ?? null,
+        teamMember: req.body.teamMember ?? null,
+        onepass:    req.body.onepass    ?? null,
+      });
+      return { ok: true, orderId: id };
+    }
+  );
 
   /**
-   * Reactivate a suspended BSP order — PATCH back to OrderPlaced so it
-   * becomes the active cart again (used when resuming from any terminal).
+   * Reactivate a suspended BSP order — PATCH back to OrderPlaced and return
+   * any stored loyalty state so the resuming terminal can restore it.
    */
   app.post<{ Params: { id: string } }>('/:id/reactivate', async (req) => {
     const { id } = req.params;
@@ -152,6 +186,14 @@ export default async function cartRoutes(app: FastifyInstance) {
       body: { status: 'OrderPlaced' },
     });
     assertOk(status, 'reactivate cart');
-    return { ok: true, orderId: id };
+    const loyalty = suspendedLoyalty.get(id) ?? null;
+    suspendedLoyalty.delete(id);
+    return { ok: true, orderId: id, loyalty };
+  });
+
+  /** Get stored loyalty state for a suspended order (without reactivating). */
+  app.get<{ Params: { id: string } }>('/:id/loyalty', async (req) => {
+    const { id } = req.params;
+    return suspendedLoyalty.get(id) ?? {};
   });
 }

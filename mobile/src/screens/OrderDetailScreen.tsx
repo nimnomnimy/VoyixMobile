@@ -47,6 +47,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const [emailInput, setEmailInput] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState<string | null>(null);
+  const emailInputRef = useRef<any>(null);
   const [refundMode, setRefundMode] = useState(false);
   const [refundProcessing, setRefundProcessing] = useState(false);
   const [refundQtys, setRefundQtys] = useState<Record<string, number>>({});
@@ -434,7 +435,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
                 </View>
               )}
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>GST included (1/11)</Text>
+                <Text style={styles.summaryLabel}>GST included</Text>
                 <Text style={styles.summaryValue}>${gstIncluded.toFixed(2)}</Text>
               </View>
               {order.surcharge != null && order.surcharge > 0 && (
@@ -591,23 +592,25 @@ export default function OrderDetailScreen({ route, navigation }: any) {
       <Modal
         visible={emailModalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setEmailModalVisible(false)}
+        onShow={() => setTimeout(() => emailInputRef.current?.focus(), 400)}
       >
         <KeyboardAvoidingView
-          style={styles.qrBackdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <TouchableOpacity
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
             activeOpacity={1}
             onPress={() => setEmailModalVisible(false)}
           />
-          <View style={[styles.qrModal, { width: '90%' }]}>
+          <View style={[styles.qrModal, styles.emailModal]}>
             <Text style={styles.qrTitle}>Send Receipt</Text>
             <Text style={styles.qrSubtitle}>Enter the customer's email address</Text>
             <View style={{ flexDirection: 'row', gap: Spacing.sm, width: '100%' }}>
               <TextInput
+                ref={emailInputRef}
                 style={[styles.emailInput, { flex: 1 }]}
                 value={emailInput}
                 onChangeText={setEmailInput}
@@ -619,7 +622,6 @@ export default function OrderDetailScreen({ route, navigation }: any) {
                 returnKeyType="send"
                 onSubmitEditing={handleSendReceipt}
                 editable={!emailSending}
-                autoFocus
               />
               <TouchableOpacity
                 style={[styles.sendButton, (emailSending || !emailInput) && styles.buttonDisabled]}
@@ -787,6 +789,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emailModal: {
+    width: '100%',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    marginHorizontal: 0,
+    paddingBottom: 32,
   },
   resumeButton: {
     flex: 2,

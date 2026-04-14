@@ -235,19 +235,21 @@ export default function ScanScreen() {
             placeholder="Search or scan barcode..."
             value={searchQuery}
             onChangeText={(text) => {
-              // Track when typing started
-              if (searchQueryRef.current === '') scanStartTime.current = Date.now();
+              const prev = searchQueryRef.current;
+              // Track time of each keystroke to detect scanner vs human
+              const now = Date.now();
+              if (prev === '') scanStartTime.current = now;
+              const timeSinceLast = now - scanStartTime.current;
               searchQueryRef.current = text;
               setSearchQuery(text);
-              // Only auto-resolve if: no spaces (barcode) AND entire string arrived within 200ms (scanner, not human)
               if (scanDebounce.current) clearTimeout(scanDebounce.current);
-              if (/^\S+$/.test(text.trim())) {
+              // If typing is slow (>300ms between chars), this is a human — don't auto-resolve
+              if (prev.length > 0 && timeSinceLast > 300) return;
+              // Otherwise set a short debounce — if input stops, treat as complete scan
+              if (/^\S+$/.test(text.trim()) && text.length >= 3) {
                 scanDebounce.current = setTimeout(() => {
                   const code = searchQueryRef.current.trim();
                   if (!code) return;
-                  const elapsed = Date.now() - scanStartTime.current;
-                  // Scanner dumps all chars in <200ms; human typing takes longer
-                  if (elapsed > 500) return; // too slow — let useCatalog handle it as a search
                   searchQueryRef.current = '';
                   setSearchQuery('');
                   void resolveCode(code);

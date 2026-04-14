@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -47,6 +48,7 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 };
 
 export default function CartScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const items = useCartStore((state) => state.items);
   const total = useCartStore((state) => state.total());
   const removeItem = useCartStore((state) => state.removeItem);
@@ -382,7 +384,7 @@ export default function CartScreen({ navigation }: any) {
       )}
 
       {/* Footer — always visible */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Spacing.md + insets.bottom }]}>
         {items.length > 0 && totalDiscount > 0 && (
           <View style={styles.savingsRow}>
             <Text style={styles.savingsLabel}>
@@ -408,14 +410,15 @@ export default function CartScreen({ navigation }: any) {
           <TouchableOpacity style={[styles.footerIconButton, styles.footerIconButtonBlue]} onPress={() => { setKeypadValue(''); setKeypadVisible(true); }}>
             <Text style={styles.footerIconText}>🔢</Text>
           </TouchableOpacity>
-          {items.length > 0 && (
-            <TouchableOpacity
-              style={styles.checkoutButton}
-              onPress={() => navigation.navigate('Checkout')}
-            >
-              <Text style={styles.checkoutButtonText}>Checkout  →</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.checkoutButton, items.length === 0 && styles.checkoutButtonDisabled]}
+            onPress={() => items.length > 0 && navigation.navigate('Checkout')}
+            disabled={items.length === 0}
+          >
+            <Text style={[styles.checkoutButtonText, items.length === 0 && styles.checkoutButtonTextDisabled]}>
+              Proceed to Checkout
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -677,7 +680,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
   },
+  checkoutButtonDisabled: { backgroundColor: Colors.border },
   checkoutButtonText: { color: Colors.background, fontSize: 15, fontWeight: '700' as const },
+  checkoutButtonTextDisabled: { color: Colors.textLight },
 
   // Loyalty toast
   loyaltyToast: {

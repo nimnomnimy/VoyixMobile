@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 
 export default function OrderConfirmationScreen({ route, navigation }: any) {
+  const insets = useSafeAreaInsets();
   const { orderId, total } = route.params;
 
   return (
@@ -37,7 +39,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
         </Text>
       </View>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Spacing.xl + insets.bottom }]}>
         <TouchableOpacity
           style={styles.button}
           onPress={() => {

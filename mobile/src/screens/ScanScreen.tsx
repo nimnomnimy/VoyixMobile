@@ -232,7 +232,7 @@ export default function ScanScreen() {
         <View style={styles.searchInputWrap}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search or scan barcode..."
+            placeholder="Search items..."
             value={searchQuery}
             onChangeText={(text) => {
               const prev = searchQueryRef.current;
@@ -274,14 +274,6 @@ export default function ScanScreen() {
             </TouchableOpacity>
           )}
         </View>
-        {Platform.OS !== 'web' && (
-          <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress}>
-            <Text style={styles.cameraButtonText}>📷</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.keypadButton} onPress={() => { setKeypadValue(''); setKeypadVisible(true); }}>
-          <Text style={styles.cameraButtonText}>🔢</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Category tabs */}

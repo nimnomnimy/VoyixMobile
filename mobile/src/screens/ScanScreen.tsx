@@ -47,6 +47,7 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 
 export default function ScanScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const searchQueryRef = useRef('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -231,8 +232,17 @@ export default function ScanScreen() {
             style={styles.searchInput}
             placeholder="Search or scan barcode..."
             value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={() => { /* debounce fires automatically via useEffect */ }}
+            onChangeText={(text) => {
+              searchQueryRef.current = text;
+              setSearchQuery(text);
+            }}
+            onSubmitEditing={() => {
+              const code = searchQueryRef.current.trim();
+              if (!code) return;
+              searchQueryRef.current = '';
+              setSearchQuery('');
+              void resolveCode(code);
+            }}
             placeholderTextColor={Colors.textLight}
             returnKeyType="search"
             blurOnSubmit={false}

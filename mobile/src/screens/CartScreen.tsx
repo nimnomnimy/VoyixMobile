@@ -60,6 +60,7 @@ export default function CartScreen({ navigation }: any) {
   const removeCard = useLoyaltyStore((state) => state.removeCard);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const searchQueryRef = useRef('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [keypadVisible, setKeypadVisible] = useState(false);
@@ -287,16 +288,16 @@ export default function CartScreen({ navigation }: any) {
             style={styles.searchInput}
             placeholder="Search or scan barcode..."
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => {
+              searchQueryRef.current = text;
+              setSearchQuery(text);
+            }}
             onSubmitEditing={() => {
-              const code = searchQuery.trim();
+              const code = searchQueryRef.current.trim();
               if (!code) return;
-              // If it looks like a barcode (numeric / no spaces) resolve directly
-              // without waiting for the search results overlay
-              if (/^\S+$/.test(code)) {
-                setSearchQuery('');
-                resolveCode(code);
-              }
+              searchQueryRef.current = '';
+              setSearchQuery('');
+              resolveCode(code);
             }}
             placeholderTextColor={Colors.textLight}
             returnKeyType="done"

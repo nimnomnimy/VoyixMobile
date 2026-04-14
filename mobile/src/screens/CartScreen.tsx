@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   footer: {
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },

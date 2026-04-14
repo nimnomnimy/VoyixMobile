@@ -195,6 +195,7 @@ function MainTabs() {
         screenOptions={{
           headerShown: true,
           headerStatusBarHeight: 0,
+          headerTitleAlign: 'center',
           tabBarActiveTintColor: '#CC0000',
           tabBarInactiveTintColor: '#999999',
           headerLeft: () => (

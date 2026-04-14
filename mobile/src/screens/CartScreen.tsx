@@ -384,7 +384,7 @@ export default function CartScreen({ navigation }: any) {
       )}
 
       {/* Footer — always visible */}
-      <View style={[styles.footer, { paddingBottom: Spacing.md + insets.bottom }]}>
+      <View style={[styles.footer, { paddingBottom: Math.max(Spacing.md, insets.bottom) }]}>
         {items.length > 0 && totalDiscount > 0 && (
           <View style={styles.savingsRow}>
             <Text style={styles.savingsLabel}>

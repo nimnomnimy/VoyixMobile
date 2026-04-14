@@ -39,7 +39,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
         </Text>
       </View>
 
-      <View style={[styles.footer, { paddingBottom: Spacing.xl + insets.bottom }]}>
+      <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
         <TouchableOpacity
           style={styles.button}
           onPress={() => {
@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
   },
   button: {
     backgroundColor: Colors.primary,

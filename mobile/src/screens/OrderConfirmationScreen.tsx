@@ -6,9 +6,7 @@ import {
   StyleSheet,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,16 +66,13 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   };
 
   return (
-    <KeyboardAvoidingView
+    <ScrollView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      automaticallyAdjustKeyboardInsets
     >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
         <View style={styles.successIcon}>
           <Text style={styles.checkmark}>✓</Text>
         </View>
@@ -141,19 +136,18 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
             <Text style={styles.emailSentText}>Receipt sent to {email}</Text>
           </View>
         )}
-      </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => {
-            navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-          }}
-        >
-          <Text style={styles.buttonText}>New Transaction</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <View style={[styles.footer, { paddingBottom: Spacing.lg + insets.bottom }]}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+            }}
+          >
+            <Text style={styles.buttonText}>New Transaction</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
   );
 }
 
@@ -161,7 +155,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-    justifyContent: 'space-between',
   },
   content: {
     flexGrow: 1,

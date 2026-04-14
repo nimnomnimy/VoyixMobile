@@ -167,7 +167,12 @@ export default function CheckoutScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Scrollable order summary — items + totals only */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.sectionTitle}>Order Summary</Text>
         {items.map((item) => (
           <View key={item.cartKey} style={styles.summaryRow}>
@@ -226,48 +231,51 @@ export default function CheckoutScreen({ navigation }: any) {
           <Text style={styles.grandTotalLabel}>Total:</Text>
           <Text style={styles.grandTotalValue}>${grandTotal.toFixed(2)}</Text>
         </View>
-
-        <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>
-          Payment Method
-        </Text>
-
-        {PAYMENT_METHODS.map((method) => (
-          <TouchableOpacity
-            key={method}
-            style={[
-              styles.paymentOption,
-              selectedPayment === method && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setSelectedPayment(method)}
-          >
-            <View style={styles.radioButton}>
-              {selectedPayment === method && (
-                <View style={styles.radioButtonInner} />
-              )}
-            </View>
-            <Text style={styles.paymentText}>{method}</Text>
-          </TouchableOpacity>
-        ))}
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(Spacing.xl, insets.bottom + Spacing.md) }]}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-          disabled={processing}
-        >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
+      {/* Fixed bottom panel — always visible regardless of list length */}
+      <View style={[styles.bottomPanel, { paddingBottom: Math.max(Spacing.xl, insets.bottom + Spacing.md) }]}>
+        <Text style={styles.sectionTitle}>Payment Method</Text>
 
-        <TouchableOpacity
-          style={[styles.confirmButton, processing && styles.buttonDisabled]}
-          onPress={handleCheckout}
-          disabled={processing}
-        >
-          <Text style={styles.confirmButtonText}>
-            {processing ? 'Processing...' : 'Confirm Payment'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.paymentRow}>
+          {PAYMENT_METHODS.map((method) => (
+            <TouchableOpacity
+              key={method}
+              style={[
+                styles.paymentOption,
+                selectedPayment === method && styles.paymentOptionSelected,
+              ]}
+              onPress={() => setSelectedPayment(method)}
+            >
+              <View style={styles.radioButton}>
+                {selectedPayment === method && (
+                  <View style={styles.radioButtonInner} />
+                )}
+              </View>
+              <Text style={styles.paymentText}>{method}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.footerButtons}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}
+            disabled={processing}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.confirmButton, processing && styles.buttonDisabled]}
+            onPress={handleCheckout}
+            disabled={processing}
+          >
+            <Text style={styles.confirmButtonText}>
+              {processing ? 'Processing...' : 'Confirm Payment'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -280,6 +288,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     padding: Spacing.lg,
   },
   sectionTitle: {
@@ -360,33 +370,46 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     fontWeight: '600' as const,
   },
+  bottomPanel: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
   paymentOption: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
     borderWidth: 2,
     borderColor: Colors.border,
     borderRadius: Radius.md,
   },
   paymentOptionSelected: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
   },
   radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: Colors.primary,
-    marginRight: Spacing.md,
+    marginRight: Spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   radioButtonInner: {
-    width: 10,
-    height: 10,
+    width: 9,
+    height: 9,
     borderRadius: 5,
     backgroundColor: Colors.primary,
   },
@@ -394,16 +417,12 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.text,
     fontWeight: '600',
+    fontSize: 13,
+    flexShrink: 1,
   },
-  footer: {
+  footerButtons: {
     flexDirection: 'row',
     gap: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: 0,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
   cancelButton: {
     flex: 1,

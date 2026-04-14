@@ -15,22 +15,22 @@ const WOMENS_COLOURS = ['BLK', 'WHT', 'NVY'];
 const MENS_COLOURS   = ['BLK', 'WHT', 'NVY'];
 const KIDS_COLOURS   = ['BLK', 'PNK', 'BLU'];
 
-const VARIANTS: { id: string; category: string }[] = [];
+const VARIANTS: { id: string; departmentId: string; nodeId: string }[] = [];
 
 for (const base of ['w001', 'w002', 'w003', 'w004'])
   for (const size of WOMENS_SIZES)
     for (const clr of WOMENS_COLOURS)
-      VARIANTS.push({ id: `${base}-${size}-${clr}`, category: 'Womens' });
+      VARIANTS.push({ id: `${base}-${size}-${clr}`, departmentId: 'Womens', nodeId: 'Womens' });
 
 for (const base of ['m001', 'm002', 'm003'])
   for (const size of MENS_SIZES)
     for (const clr of MENS_COLOURS)
-      VARIANTS.push({ id: `${base}-${size}-${clr}`, category: 'Mens' });
+      VARIANTS.push({ id: `${base}-${size}-${clr}`, departmentId: 'Mens', nodeId: 'Mens' });
 
 for (const base of ['k001', 'k002'])
   for (const size of KIDS_SIZES)
     for (const clr of KIDS_COLOURS)
-      VARIANTS.push({ id: `${base}-${size}-${clr}`, category: 'Kids-Baby' });
+      VARIANTS.push({ id: `${base}-${size}-${clr}`, departmentId: 'Kids & Baby', nodeId: 'Kids-Baby' });
 
 async function main() {
   console.log(`Deactivating ${VARIANTS.length} variant items...\n`);
@@ -42,8 +42,8 @@ async function main() {
         method: 'PUT',
         body: {
           shortDescription: { values: [{ locale: 'en-US', value: v.id }] },
-          departmentId: v.category,
-          merchandiseCategory: { nodeId: v.category },
+          departmentId: v.departmentId,
+          merchandiseCategory: { nodeId: v.nodeId },
           status: 'INACTIVE',
           version: 1,
         },

@@ -111,23 +111,24 @@ export default async function orderRoutes(app: FastifyInstance) {
     },
     async (req) => {
       const { orderId, paymentType, paymentSubType, paymentAmount, staffId = 'unknown' } = req.body;
-      const resolvedSubType = paymentSubType ?? (paymentType === 'Cash' ? 'Cash' : 'Contactless');
-
       // 1. Fetch the current order to calculate totals
       const { status: getStatus, data: order } = await ncrSiteRequest<any>(`${ORDER_BASE}/${orderId}`);
       assertOk(getStatus, 'fetch order for checkout');
 
       // 2. Patch order to OrderPlaced with payment
+      // BSP rejects subType for Cash tender — only include it for card-based payments
+      const paymentEntry: Record<string, unknown> = {
+        type: paymentType,
+        amount: paymentAmount,
+        status: 'Authorized',
+      };
+      if (paymentType !== 'Cash') {
+        paymentEntry.subType = paymentSubType ?? 'Contactless';
+      }
+
       const finalise = {
         status: 'OrderPlaced',
-        payments: [
-          {
-            type: paymentType,
-            subType: resolvedSubType,
-            amount: paymentAmount,
-            status: 'Authorized',
-          },
-        ],
+        payments: [paymentEntry],
       };
 
       const { status: patchStatus, data: patchData } = await ncrSiteRequest(`${ORDER_BASE}/${orderId}`, {

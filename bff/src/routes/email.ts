@@ -1,29 +1,26 @@
 /**
- * Email routes — sends order receipts with embedded QR code.
+ * Email routes — sends order receipts with embedded QR code via Resend.
  *
- * Requires SMTP config in env vars (optional — endpoint returns 503 if unconfigured):
- *   EMAIL_SMTP_HOST     e.g. smtp.gmail.com
- *   EMAIL_SMTP_PORT     e.g. 587
- *   EMAIL_SMTP_USER     e.g. store@kmart.com.au
- *   EMAIL_SMTP_PASS     App password or SMTP password
- *   EMAIL_FROM_NAME     e.g. "Kmart Store" (optional, defaults to EMAIL_SMTP_USER)
+ * Requires:
+ *   RESEND_API_KEY      API key from resend.com
+ *   EMAIL_FROM          Sender address, e.g. receipts@yourdomain.com
+ *                       (use onboarding@resend.dev for testing without a domain)
+ *   EMAIL_FROM_NAME     Display name, e.g. "Kmart Store" (optional)
  */
 import type { FastifyInstance } from 'fastify';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import QRCode from 'qrcode';
 
-function buildTransport() {
-  const host = process.env.EMAIL_SMTP_HOST;
-  const user = process.env.EMAIL_SMTP_USER;
-  const pass = process.env.EMAIL_SMTP_PASS;
-  if (!host || !user || !pass) return null;
+function buildResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  return new Resend(apiKey);
+}
 
-  return nodemailer.createTransport({
-    host,
-    port: parseInt(process.env.EMAIL_SMTP_PORT ?? '587'),
-    secure: process.env.EMAIL_SMTP_PORT === '465',
-    auth: { user, pass },
-  });
+function fromAddress() {
+  const name = process.env.EMAIL_FROM_NAME ?? 'Kmart';
+  const addr = process.env.EMAIL_FROM ?? 'onboarding@resend.dev';
+  return `${name} <${addr}>`;
 }
 
 interface ReceiptItem {
@@ -195,8 +192,8 @@ export default async function emailRoutes(app: FastifyInstance) {
       },
     },
     async (req, reply) => {
-      const transport = buildTransport();
-      if (!transport) {
+      const resend = buildResend();
+      if (!resend) {
         return reply.status(503).send({ error: 'Email not configured on this server' });
       }
 
@@ -207,15 +204,19 @@ export default async function emailRoutes(app: FastifyInstance) {
       });
 
       const html = buildReceiptHtml(req.body, qrDataUrl);
-      const fromName = process.env.EMAIL_FROM_NAME ?? process.env.EMAIL_SMTP_USER ?? 'Kmart';
-      const fromAddr = process.env.EMAIL_SMTP_USER ?? '';
+      const storeName = req.body.storeName ?? 'Kmart';
 
-      await transport.sendMail({
-        from: `"${fromName}" <${fromAddr}>`,
+      const { error } = await resend.emails.send({
+        from: fromAddress(),
         to: req.body.to,
-        subject: `Your ${req.body.storeName ?? 'Kmart'} receipt — Order ${req.body.orderId.slice(-8)}`,
+        subject: `Your ${storeName} receipt — Order ${req.body.orderId.slice(-8)}`,
         html,
       });
+
+      if (error) {
+        app.log.error(error, 'Resend error');
+        return reply.status(502).send({ error: error.message });
+      }
 
       return { ok: true };
     },
@@ -248,11 +249,7 @@ export default async function emailRoutes(app: FastifyInstance) {
 
   /** Check whether email is configured (no auth required — used by Settings screen). */
   app.get('/status', async () => {
-    const configured = !!(
-      process.env.EMAIL_SMTP_HOST &&
-      process.env.EMAIL_SMTP_USER &&
-      process.env.EMAIL_SMTP_PASS
-    );
-    return { configured, fromName: process.env.EMAIL_FROM_NAME ?? process.env.EMAIL_SMTP_USER ?? null };
+    const configured = !!process.env.RESEND_API_KEY;
+    return { configured, fromName: process.env.EMAIL_FROM_NAME ?? null };
   });
 }

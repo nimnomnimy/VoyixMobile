@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { useOrderStore } from '../store/useOrderStore';
+import { bff } from '../lib/bffClient';
 
 import LoginScreen from '../screens/LoginScreen';
 import ScanScreen from '../screens/ScanScreen';
@@ -100,19 +101,44 @@ function MainTabs() {
           showAlert('Nothing to suspend', 'Add items to the cart first.');
           return;
         }
-        const id = 'SUS-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+        const cartStore = require('../store/useCartStore').useCartStore.getState();
+        const bspOrderId = cartStore.bspOrderId;
         const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
-        suspendOrder({
-          id,
-          total,
-          refundedTotal: 0,
-          itemCount: items.reduce((s, i) => s + i.quantity, 0),
-          timestamp: new Date().toLocaleString(),
-          status: 'suspended',
-          items: items.map((i) => ({ ...i, refundedQty: 0 })),
-        });
-        clearCart();
-        showAlert('Suspended', `Transaction ${id} has been suspended.`);
+        const orderItems = items.map((i) => ({ ...i, refundedQty: 0 }));
+
+        if (bspOrderId) {
+          // BSP-backed suspend — PATCH to InProgress so any terminal can recall it
+          bff.post(`/api/cart/${bspOrderId}/suspend`, {})
+            .catch(() => {}); // fire-and-forget; local suspend still happens
+          suspendOrder({
+            id: bspOrderId,
+            bspOrderId,
+            total,
+            refundedTotal: 0,
+            itemCount: items.reduce((s, i) => s + i.quantity, 0),
+            timestamp: new Date().toLocaleString(),
+            status: 'suspended',
+            items: orderItems,
+          });
+          // Clear local cart state only (don't cancel BSP order)
+          cartStore.clearCartLocal();
+          const { useLoyaltyStore } = require('../store/useLoyaltyStore');
+          useLoyaltyStore.getState().clearAll();
+        } else {
+          // No BSP order yet — local-only suspend
+          const id = 'SUS-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+          suspendOrder({
+            id,
+            total,
+            refundedTotal: 0,
+            itemCount: items.reduce((s, i) => s + i.quantity, 0),
+            timestamp: new Date().toLocaleString(),
+            status: 'suspended',
+            items: orderItems,
+          });
+          clearCart();
+        }
+        showAlert('Suspended', 'Transaction suspended. Recall it from the Orders tab on any terminal.');
       },
     },
     {

@@ -22,6 +22,7 @@ interface CartState {
   updateQuantity: (cartKey: string, quantity: number) => void;
   clearCart: () => void;
   clearCartLocal: () => void;  // post-checkout: clears local state without cancelling BSP order
+  setBspOrderId: (id: string) => void;  // adopt an existing BSP order (e.g. resumed suspended transaction)
   ensureSynced: () => Promise<string | null>; // guarantees BSP order exists; creates + adds all lines if not
   total: () => number;
 }
@@ -178,6 +179,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     const { useLoyaltyStore } = require('./useLoyaltyStore');
     useLoyaltyStore.getState().clearAll();
   },
+
+  setBspOrderId: (id) => set({ bspOrderId: id }),
 
   ensureSynced: async () => {
     // If BSP order already exists, return it immediately

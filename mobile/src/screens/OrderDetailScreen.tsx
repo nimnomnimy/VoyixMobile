@@ -28,6 +28,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const cartItems = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const clearCart = useCartStore((state) => state.clearCart);
+  const setBspOrderId = useCartStore((state) => state.setBspOrderId);
   const staffId = useAuthStore((state) => state.staffId) ?? 'unknown';
 
   const [refundMode, setRefundMode] = useState(false);
@@ -117,32 +118,46 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         'You have items in your cart. Resuming will replace the current cart.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Replace & Resume', style: 'destructive', onPress: doResume },
+          { text: 'Replace & Resume', style: 'destructive', onPress: () => void doResume() },
         ]
       );
     } else {
-      doResume();
+      void doResume();
     }
   };
 
-  const doResume = () => {
+  const doResume = async () => {
     if (!order) return;
-    // Snapshot values before any state mutations — state updates trigger
-    // re-renders and order/items refs can become stale mid-function.
+    // Snapshot before any state mutations
     const resumeId = order.id;
+    const resumeBspOrderId = order.bspOrderId;
     const resumeItems = order.items.slice();
 
-    clearCart();
-    resumeItems.forEach((item) => {
-      // Strip refundedQty, effectivePrice, and bspLineId — the resumed cart
-      // is a fresh BSP order so old line IDs must not carry over.
-      const { refundedQty, effectivePrice, bspLineId, ...cartItem } = item;
-      addItem(cartItem);
-    });
-    // Pop back to the Orders tab first, then switch to Cart tab.
-    // Using goBack() + a deferred tab switch avoids the react-navigation
-    // crash that occurs when navigating to a nested tab screen while
-    // simultaneously mutating the store that sourced this screen's data.
+    if (resumeBspOrderId) {
+      // Reactivate the BSP order (InProgress → OrderPlaced) so it becomes
+      // the active cart. Items already exist as BSP lines — no need to re-add.
+      try {
+        await bff.post(`/api/cart/${resumeBspOrderId}/reactivate`, {});
+      } catch {
+        // Continue anyway — cart will re-sync on next interaction
+      }
+      // Restore local cart state pointing at the existing BSP order
+      clearCart();
+      setBspOrderId(resumeBspOrderId);
+      resumeItems.forEach((item) => {
+        const { refundedQty, effectivePrice, ...cartItem } = item;
+        // Keep bspLineId so the cart knows about existing BSP lines
+        addItem(cartItem);
+      });
+    } else {
+      // Local-only suspended order — fresh cart
+      clearCart();
+      resumeItems.forEach((item) => {
+        const { refundedQty, effectivePrice, bspLineId, ...cartItem } = item;
+        addItem(cartItem);
+      });
+    }
+
     navigation.goBack();
     setTimeout(() => {
       removeOrder(resumeId);
@@ -159,7 +174,13 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         {
           text: 'Cancel Transaction',
           style: 'destructive',
-          onPress: () => { removeOrder(order.id); navigation.goBack(); },
+          onPress: () => {
+            if (order.bspOrderId) {
+              bff.delete(`/api/cart/${order.bspOrderId}`).catch(() => {});
+            }
+            removeOrder(order.id);
+            navigation.goBack();
+          },
         },
       ]
     );

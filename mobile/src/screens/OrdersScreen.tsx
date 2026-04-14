@@ -43,6 +43,7 @@ interface BspOrderLine {
 
 interface BspOrder {
   id?: string;
+  status?: string;
   orderLines?: BspOrderLine[];
   payments?: { amount?: number }[];
   openDate?: string;
@@ -71,8 +72,9 @@ function mapBspOrder(bsp: BspOrder): Order {
   // Use TDM-derived refundedTotal from BFF if available, otherwise derive from line quantities
   const refundedTotal = bsp.refundedTotal
     ?? items.reduce((s, i) => s + i.price * i.refundedQty, 0);
-  const allRefunded = items.length > 0 && items.every((i) => i.refundedQty >= i.quantity);
-  const anyRefunded = items.some((i) => i.refundedQty > 0);
+  const isSuspended = bsp.status === 'InProgress';
+  const allRefunded = !isSuspended && items.length > 0 && items.every((i) => i.refundedQty >= i.quantity);
+  const anyRefunded = !isSuspended && items.some((i) => i.refundedQty > 0);
   return {
     id,
     bspOrderId: id,
@@ -80,7 +82,7 @@ function mapBspOrder(bsp: BspOrder): Order {
     refundedTotal,
     itemCount: items.reduce((s, i) => s + i.quantity, 0),
     timestamp: bsp.openDate ?? bsp.createdDate ?? new Date().toLocaleString(),
-    status: allRefunded ? 'refunded' : anyRefunded ? 'partially_refunded' : 'completed',
+    status: isSuspended ? 'suspended' : allRefunded ? 'refunded' : anyRefunded ? 'partially_refunded' : 'completed',
     items,
   };
 }

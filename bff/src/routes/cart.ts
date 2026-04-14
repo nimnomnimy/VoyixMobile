@@ -115,7 +115,7 @@ export default async function cartRoutes(app: FastifyInstance) {
     return data ?? { ok: true };
   });
 
-  /** Clear entire cart. */
+  /** Clear entire cart (cancel the BSP order). */
   app.delete<{ Params: { id: string } }>('/:id', async (req) => {
     const { id } = req.params;
     const patch = { status: 'Cancelled' };
@@ -125,5 +125,33 @@ export default async function cartRoutes(app: FastifyInstance) {
     });
     assertOk(status, 'cancel cart');
     return { ok: true };
+  });
+
+  /**
+   * Suspend a cart — PATCH BSP order to InProgress so it persists server-side
+   * and can be recalled from any terminal via /api/order/recent.
+   */
+  app.post<{ Params: { id: string } }>('/:id/suspend', async (req) => {
+    const { id } = req.params;
+    const { status } = await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
+      method: 'PATCH',
+      body: { status: 'InProgress' },
+    });
+    assertOk(status, 'suspend cart');
+    return { ok: true, orderId: id };
+  });
+
+  /**
+   * Reactivate a suspended BSP order — PATCH back to OrderPlaced so it
+   * becomes the active cart again (used when resuming from any terminal).
+   */
+  app.post<{ Params: { id: string } }>('/:id/reactivate', async (req) => {
+    const { id } = req.params;
+    const { status } = await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
+      method: 'PATCH',
+      body: { status: 'OrderPlaced' },
+    });
+    assertOk(status, 'reactivate cart');
+    return { ok: true, orderId: id };
   });
 }

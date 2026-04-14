@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { TouchableOpacity, Image, View, Text, StyleSheet } from 'react-native';
 import { showAlert } from '../lib/webAlert';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,7 @@ import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ApiLogScreen from '../screens/ApiLogScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -34,8 +37,11 @@ function MainTabs() {
   const flybuys = useLoyaltyStore((state) => state.flybuys);
   const teamMember = useLoyaltyStore((state) => state.teamMember);
   const onepass = useLoyaltyStore((state) => state.onepass);
+  const appVersion = Constants.expoConfig?.version ?? '?';
+  const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : 'local';
+
   const handleSessionMenu = () => {
-    showAlert('Session', 'Choose an option', [
+    showAlert(`Session  v${appVersion} (${updateId})`, 'Choose an option', [
       {
         text: 'Suspend Transaction',
         onPress: () => {
@@ -44,7 +50,7 @@ function MainTabs() {
             return;
           }
           const id = 'SUS-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-          const total = items.reduce((s, i) => s + i.price * i.quantity, 0) * 1.10;
+          const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
           suspendOrder({
             id,
             total,
@@ -83,6 +89,10 @@ function MainTabs() {
         onPress: () => navigation.navigate('ApiLog'),
       },
       {
+        text: 'Settings',
+        onPress: () => navigation.navigate('Settings'),
+      },
+      {
         text: 'Log Out',
         style: 'destructive',
         onPress: () => {
@@ -106,7 +116,7 @@ function MainTabs() {
         headerLeft: () => (
           <Image
             source={require('../../assets/kmart-logo.png')}
-            style={{ width: 160, height: 56, resizeMode: 'contain', marginLeft: 12 }}
+            style={{ width: 80, height: 28, resizeMode: 'contain', marginLeft: 12 }}
           />
         ),
         headerRight: () => (
@@ -173,6 +183,23 @@ function MainTabs() {
 export default function RootNavigator() {
   const token = useAuthStore((state) => state.token);
 
+  // Check for OTA updates on launch and reload immediately if one is available.
+  // Only runs in production builds (Updates.isEmbeddedLaunch is false in standalone apps).
+  useEffect(() => {
+    if (__DEV__) return;
+    (async () => {
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (check.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // Silently ignore — update failures must never block the app
+      }
+    })();
+  }, []);
+
   return (
     <NavigationContainer>
       <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
@@ -199,6 +226,11 @@ export default function RootNavigator() {
             <Stack.Screen
               name="ApiLog"
               component={ApiLogScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
               options={{ headerShown: false }}
             />
           </>

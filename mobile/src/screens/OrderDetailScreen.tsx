@@ -129,11 +129,15 @@ export default function OrderDetailScreen({ route, navigation }: any) {
     if (!order) return;
     clearCart();
     order.items.forEach((item) => {
-      const { refundedQty, ...cartItem } = item;
+      // Strip refundedQty, effectivePrice, and bspLineId — the resumed cart
+      // is a fresh BSP order so old line IDs must not carry over.
+      const { refundedQty, effectivePrice, bspLineId, ...cartItem } = item;
       addItem(cartItem);
     });
-    removeOrder(order.id);
+    // Navigate first, then remove — removing order triggers a re-render
+    // with order=undefined which crashes if navigation hasn't completed yet.
     navigation.navigate('Main', { screen: 'Cart' });
+    removeOrder(order.id);
   };
 
   const handleCancelSuspended = () => {

@@ -85,7 +85,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
             (resp.basketDiscount ?? 0);
           const remainingSubtotal = remaining.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
           const newBasketTotal = parseFloat(
-            (Math.max(0, remainingSubtotal - promoSavings) * 1.10).toFixed(2),
+            Math.max(0, remainingSubtotal - promoSavings).toFixed(2),
           );
           const calculated = parseFloat(
             Math.max(0, Math.min(remainingBalance - newBasketTotal, remainingBalance)).toFixed(2),
@@ -97,7 +97,7 @@ export default function OrderDetailScreen({ route, navigation }: any) {
           const simple = Object.entries(refundQtys).reduce((sum, [cartKey, qty]) => {
             const item = order.items.find((i) => i.cartKey === cartKey);
             return sum + (item ? (item.effectivePrice ?? item.price) * qty : 0);
-          }, 0) * 1.10;
+          }, 0);
           setRefundAmount(parseFloat(Math.min(simple, remainingBalance).toFixed(2)));
         })
         .finally(() => setRefundCalcLoading(false));
@@ -319,10 +319,10 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         {/* Summary */}
         {(() => {
           const itemsSubtotal = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
-          // order.total was charged as discountedSubtotal × 1.10
-          const chargedSubtotal = parseFloat((order.total / 1.10).toFixed(2));
-          const tax = parseFloat((order.total - chargedSubtotal).toFixed(2));
-          const savings = parseFloat((itemsSubtotal - chargedSubtotal).toFixed(2));
+          // Prices are GST-inclusive; surcharge is stored separately
+          const subtotalBeforeSurcharge = parseFloat((order.total - (order.surcharge ?? 0)).toFixed(2));
+          const gstIncluded = parseFloat((subtotalBeforeSurcharge / 11).toFixed(2));
+          const savings = parseFloat((itemsSubtotal - subtotalBeforeSurcharge).toFixed(2));
           return (
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
@@ -336,9 +336,19 @@ export default function OrderDetailScreen({ route, navigation }: any) {
                 </View>
               )}
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>GST (10%)</Text>
-                <Text style={styles.summaryValue}>${tax.toFixed(2)}</Text>
+                <Text style={styles.summaryLabel}>GST included (1/11)</Text>
+                <Text style={styles.summaryValue}>${gstIncluded.toFixed(2)}</Text>
               </View>
+              {order.surcharge != null && order.surcharge > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: Colors.warning }]}>
+                    {order.paymentMethod ?? 'Card'} surcharge (1.5%)
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: Colors.warning }]}>
+                    ${order.surcharge.toFixed(2)}
+                  </Text>
+                </View>
+              )}
               <View style={[styles.summaryRow, styles.summaryNetRow]}>
                 <Text style={styles.summaryNetLabel}>Order Total</Text>
                 <Text style={styles.summaryNetValue}>${order.total.toFixed(2)}</Text>

@@ -22,7 +22,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Amount:</Text>
-            <Text style={styles.detailValue}>${(total * 1.10).toFixed(2)}</Text>
+            <Text style={styles.detailValue}>${(total as number).toFixed(2)}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Time:</Text>

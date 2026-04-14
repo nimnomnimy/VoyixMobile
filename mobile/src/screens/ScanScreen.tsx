@@ -49,6 +49,7 @@ export default function ScanScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchQueryRef = useRef('');
   const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanStartTime = useRef<number>(0);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -234,18 +235,23 @@ export default function ScanScreen() {
             placeholder="Search or scan barcode..."
             value={searchQuery}
             onChangeText={(text) => {
+              // Track when typing started
+              if (searchQueryRef.current === '') scanStartTime.current = Date.now();
               searchQueryRef.current = text;
               setSearchQuery(text);
-              // Scanner debounce: no-spaces input that stops for 120ms = barcode scan
+              // Only auto-resolve if: no spaces (barcode) AND entire string arrived within 200ms (scanner, not human)
               if (scanDebounce.current) clearTimeout(scanDebounce.current);
               if (/^\S+$/.test(text.trim())) {
                 scanDebounce.current = setTimeout(() => {
                   const code = searchQueryRef.current.trim();
                   if (!code) return;
+                  const elapsed = Date.now() - scanStartTime.current;
+                  // Scanner dumps all chars in <200ms; human typing takes longer
+                  if (elapsed > 500) return; // too slow — let useCatalog handle it as a search
                   searchQueryRef.current = '';
                   setSearchQuery('');
                   void resolveCode(code);
-                }, 120);
+                }, 150);
               }
             }}
             onSubmitEditing={() => {

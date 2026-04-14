@@ -194,6 +194,7 @@ function MainTabs() {
         id={undefined}
         screenOptions={{
           headerShown: true,
+          headerStatusBarHeight: 0,
           tabBarActiveTintColor: '#CC0000',
           tabBarInactiveTintColor: '#999999',
           headerLeft: () => (

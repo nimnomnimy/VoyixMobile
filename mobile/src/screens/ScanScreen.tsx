@@ -18,7 +18,6 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore } from '../store/useCartStore';
 import { useLoyaltyStore, LoyaltyCardType } from '../store/useLoyaltyStore';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius } from '../theme';
 import {
   CatalogItem,
@@ -44,7 +43,6 @@ const CARD_LABEL: Record<LoyaltyCardType, string> = {
 };
 
 export default function ScanScreen() {
-  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -196,7 +194,7 @@ export default function ScanScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top || Spacing.md }]}>
+    <View style={[styles.container, { paddingTop: Spacing.md }]}>
       {/* Search + Camera */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputWrap}>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { bff } from '../lib/bffClient';
-import { CatalogItem, LOCAL_IMAGES, baseItemCode } from '../data/catalog';
+import { CatalogItem, LOCAL_IMAGES } from '../data/catalog';
 
 interface BspItemDetail {
   itemCode?: string | { value: string };
@@ -34,29 +34,14 @@ function normaliseDescription(raw: unknown): string {
   return '';
 }
 
-// Reverse map of CLR codes to colour names (mirrors catalog.ts)
-const CLR_NAME: Record<string, string> = {
-  BLK: 'Black', WHT: 'White', NVY: 'Navy', PNK: 'Pink', BLU: 'Blue',
-};
-
 function normaliseBspItem(item: BspItemDetail, priceMap: Record<string, number>): CatalogItem {
   const id = normaliseItemCode(item.itemCode);
   const name = normaliseDescription(item.shortDescription) || id;
   const barcode = item.packageIdentifiers?.[0]?.value;
-  const image: string | number | undefined = item.imageUrls?.[0] ?? LOCAL_IMAGES[id] ?? LOCAL_IMAGES[baseItemCode(id)] ?? undefined;
+  const image: string | number | undefined = item.imageUrls?.[0] ?? LOCAL_IMAGES[id] ?? undefined;
   const category = item.departmentId ?? 'General';
   const price = priceMap[id] ?? 0;
-
-  // Extract size/color from variant codes e.g. 'w001-S-BLK' → size='S', color='Black'
-  let size: string | undefined;
-  let color: string | undefined;
-  const parts = id.split('-');
-  if (parts.length >= 3) {
-    size = parts[1];
-    color = CLR_NAME[parts[2]] ?? parts[2];
-  }
-
-  return { id, name, price, image, barcode, category, size, color };
+  return { id, name, price, image, barcode, category };
 }
 
 export function useCatalog(query: string, category: string) {

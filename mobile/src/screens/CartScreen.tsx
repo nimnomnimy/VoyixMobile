@@ -412,7 +412,7 @@ export default function CartScreen({ navigation }: any) {
             disabled={items.length === 0}
           >
             <Text style={[styles.checkoutButtonText, items.length === 0 && styles.checkoutButtonTextDisabled]}>
-              Proceed to Checkout
+              {items.length === 0 ? 'Add item(s) to cart' : 'Proceed to Checkout'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -796,14 +796,14 @@ const styles = StyleSheet.create({
   },
   keypadKey: {
     width: '30%',
-    aspectRatio: 1.6,
+    height: 56,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   keypadKeyBlank: { backgroundColor: 'transparent' },
-  keypadKeyText: { fontSize: 22, fontWeight: '500' as const, color: Colors.text, textAlign: 'center' as const, textAlignVertical: 'center' as const, includeFontPadding: false },
+  keypadKeyText: { fontSize: 22, fontWeight: '500' as const, color: Colors.text, textAlign: 'center' as const, lineHeight: 28, includeFontPadding: false },
   keypadActions: { flexDirection: 'row', gap: Spacing.md },
   keypadCancel: {
     flex: 1,

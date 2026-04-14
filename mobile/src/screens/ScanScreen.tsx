@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   },
   keypadKey: {
     width: '30%',
-    aspectRatio: 1.6,
+    height: 56,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     justifyContent: 'center',
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     color: Colors.text,
     textAlign: 'center' as const,
-    textAlignVertical: 'center' as const,
+    lineHeight: 28,
     includeFontPadding: false,
   },
   keypadActions: {

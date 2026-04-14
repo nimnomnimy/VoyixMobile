@@ -1,26 +1,26 @@
 /**
- * Email routes — sends order receipts with embedded QR code via Resend.
+ * Email routes — sends order receipts with embedded QR code via Brevo.
  *
  * Requires:
- *   RESEND_API_KEY      API key from resend.com
- *   EMAIL_FROM          Sender address, e.g. receipts@yourdomain.com
- *                       (use onboarding@resend.dev for testing without a domain)
+ *   BREVO_API_KEY       API key from brevo.com
+ *   EMAIL_FROM          Sender address (optional, defaults to noreply@voyixmobile.com)
  *   EMAIL_FROM_NAME     Display name, e.g. "Kmart Store" (optional)
  */
 import type { FastifyInstance } from 'fastify';
-import { Resend } from 'resend';
+import { BrevoClient } from '@getbrevo/brevo';
 import QRCode from 'qrcode';
 
-function buildResend() {
-  const apiKey = process.env.RESEND_API_KEY;
+function buildBrevo() {
+  const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) return null;
-  return new Resend(apiKey);
+  return new BrevoClient({ apiKey });
 }
 
 function fromAddress() {
-  const name = process.env.EMAIL_FROM_NAME ?? 'Kmart';
-  const addr = process.env.EMAIL_FROM ?? 'onboarding@resend.dev';
-  return `${name} <${addr}>`;
+  return {
+    name: process.env.EMAIL_FROM_NAME ?? 'Kmart',
+    email: process.env.EMAIL_FROM ?? 'noreply@voyixmobile.com',
+  };
 }
 
 interface ReceiptItem {
@@ -192,8 +192,8 @@ export default async function emailRoutes(app: FastifyInstance) {
       },
     },
     async (req, reply) => {
-      const resend = buildResend();
-      if (!resend) {
+      const brevo = buildBrevo();
+      if (!brevo) {
         return reply.status(503).send({ error: 'Email not configured on this server' });
       }
 
@@ -205,18 +205,15 @@ export default async function emailRoutes(app: FastifyInstance) {
 
       const html = buildReceiptHtml(req.body, qrDataUrl);
       const storeName = req.body.storeName ?? 'Kmart';
+      const from = fromAddress();
 
-      const { error } = await resend.emails.send({
-        from: fromAddress(),
-        to: req.body.to,
+      await brevo.transactionalEmails.sendTransacEmail({
         subject: `Your ${storeName} receipt — Order ${req.body.orderId.slice(-8)}`,
-        html,
+        htmlContent: html,
+        sender: from,
+        to: [{ email: req.body.to }],
+        replyTo: from,
       });
-
-      if (error) {
-        app.log.error(error, 'Resend error');
-        return reply.status(502).send({ error: error.message });
-      }
 
       return { ok: true };
     },
@@ -249,7 +246,7 @@ export default async function emailRoutes(app: FastifyInstance) {
 
   /** Check whether email is configured (no auth required — used by Settings screen). */
   app.get('/status', async () => {
-    const configured = !!process.env.RESEND_API_KEY;
+    const configured = !!process.env.BREVO_API_KEY;
     return { configured, fromName: process.env.EMAIL_FROM_NAME ?? null };
   });
 }

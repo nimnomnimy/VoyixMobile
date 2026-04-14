@@ -97,15 +97,8 @@ export async function ncrRequest<T = unknown>(
   try {
     const data = (await res.json()) as T;
     if (status >= 400) {
-      // Suppress 404 noise for CDM consumer lookups — card-not-found is expected
-      // for demo/test card numbers and handled gracefully by the loyalty route.
-      const isCdmNotFound = status === 404 && path.startsWith('/cdm/');
-      if (!isCdmNotFound) {
-        console.error(`[NCR ${status}] ${method} ${path}`, JSON.stringify(data));
-        logComplete(logEntry, status, Date.now() - t0, `HTTP ${status}`);
-      } else {
-        logComplete(logEntry, status, Date.now() - t0);
-      }
+      console.error(`[NCR ${status}] ${method} ${path}`, JSON.stringify(data));
+      logComplete(logEntry, status, Date.now() - t0, `HTTP ${status}`);
     } else {
       logComplete(logEntry, status, Date.now() - t0);
     }

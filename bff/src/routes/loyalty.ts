@@ -9,6 +9,21 @@
 import type { FastifyInstance } from 'fastify';
 import { ncrRequest } from '../lib/ncrClient.js';
 
+/**
+ * Maps demo card numbers → BSP-generated consumerAccountNumbers.
+ * BSP CDM auto-generates account numbers on POST — we cannot choose them,
+ * so we maintain this map after running seed-consumers.ts.
+ */
+const CONSUMER_MAP: Record<string, { bspId: string; firstName: string; lastName: string }> = {
+  '7': { bspId: '1YTKW29ZR2ADMRFA', firstName: 'Demo', lastName: 'Flybuys' },
+  '8': { bspId: 'Y8SVDT00GC7U7NT7', firstName: 'Demo', lastName: 'TeamMember' },
+  '9': { bspId: 'FMG811TQGF4RJAGO', firstName: 'Demo', lastName: 'OnePass' },
+  '111122223333': { bspId: 'QASHUXB4LCZ21ETT', firstName: 'Sarah', lastName: 'Johnson' },
+  '123412341234': { bspId: 'I74MCRD4F5UYREFF', firstName: 'Michael', lastName: 'Chen' },
+  '444455556666': { bspId: 'XBW61INYWEFQ1T3Z', firstName: 'James', lastName: 'Taylor' },
+  '777788889999': { bspId: 'GGLJYMYHGAQRIRZ5', firstName: 'Olivia', lastName: 'Brown' },
+};
+
 export default async function loyaltyRoutes(app: FastifyInstance) {
   /**
    * POST /api/loyalty/identify
@@ -32,14 +47,18 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
     async (req) => {
       const { cardNumber, cardType } = req.body;
 
+      // Resolve demo card numbers to their BSP-generated account IDs
+      const mapped = CONSUMER_MAP[cardNumber];
+      const bspAccountNumber = mapped?.bspId ?? cardNumber;
+
       try {
         const { status, data: consumer } = await ncrRequest<any>(
-          `/cdm/consumers/${encodeURIComponent(cardNumber)}`
+          `/cdm/consumers/${encodeURIComponent(bspAccountNumber)}`
         );
 
         if (status === 200 && consumer) {
-          const firstName = consumer.firstName ?? '';
-          const lastName  = consumer.lastName ?? '';
+          const firstName = consumer.firstName ?? mapped?.firstName ?? '';
+          const lastName  = consumer.lastName  ?? mapped?.lastName  ?? '';
           return {
             accountId:     consumer.consumerAccountNumber ?? cardNumber,
             memberName:    firstName ? `${firstName} ${lastName}`.trim() : 'Loyalty Member',
@@ -50,7 +69,6 @@ export default async function loyaltyRoutes(app: FastifyInstance) {
         }
 
         if (status === 404) {
-          // Card not found — return stub without logging a warning
           return {
             accountId:     cardNumber,
             memberName:    'Loyalty Member',

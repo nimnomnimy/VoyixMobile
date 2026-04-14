@@ -126,15 +126,17 @@ export default async function orderRoutes(app: FastifyInstance) {
             subType: resolvedSubType,
             amount: paymentAmount,
             status: 'Authorized',
-            payBalance: true,
           },
         ],
       };
 
-      const { status: patchStatus } = await ncrSiteRequest(`${ORDER_BASE}/${orderId}`, {
+      const { status: patchStatus, data: patchData } = await ncrSiteRequest(`${ORDER_BASE}/${orderId}`, {
         method: 'PATCH',
         body: finalise,
       });
+      if (patchStatus >= 400) {
+        app.log.error({ patchStatus, patchData, finalise }, 'BSP order PATCH failed');
+      }
       assertOk(patchStatus, 'finalise order');
 
       // 3. Submit t-log to TDM

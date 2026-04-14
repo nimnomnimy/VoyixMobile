@@ -174,6 +174,7 @@ export default function OrdersScreen({ navigation }: any) {
             value={search}
             onChangeText={setSearch}
             autoCapitalize="characters"
+            autoFocus
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')} style={styles.clearButton}>

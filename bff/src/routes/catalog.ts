@@ -9,6 +9,30 @@
 import type { FastifyInstance } from 'fastify';
 import { ncrRequest, ncrSiteRequest } from '../lib/ncrClient.js';
 import { assertOk } from '../lib/errors.js';
+import { config } from '../config.js';
+
+/**
+ * Fetch imageUrls from item-attributes for a list of item codes.
+ * Returns a map of itemCode → first imageUrl (or undefined).
+ * Failures are silently ignored — items without attributes just get no image.
+ */
+async function fetchItemImages(itemCodes: string[]): Promise<Record<string, string>> {
+  const results = await Promise.allSettled(
+    itemCodes.map((code) =>
+      ncrSiteRequest<any>(
+        `/catalog/v2/item-attributes/${encodeURIComponent(code)}?enterpriseUnitId=${encodeURIComponent(config.bsp.siteId)}`
+      )
+    )
+  );
+  const imageMap: Record<string, string> = {};
+  results.forEach((result, idx) => {
+    if (result.status === 'fulfilled' && result.value.status === 200) {
+      const urls: string[] = result.value.data?.imageUrls ?? [];
+      if (urls.length > 0) imageMap[itemCodes[idx]] = urls[0];
+    }
+  });
+  return imageMap;
+}
 
 export default async function catalogRoutes(app: FastifyInstance) {
   /** Search items by short description or barcode. */
@@ -35,17 +59,23 @@ export default async function catalogRoutes(app: FastifyInstance) {
       // Mobile expects flat BspItemDetail: { itemCode, shortDescription, departmentId, packageIdentifiers, imageUrls }
       const body = data as any;
       const pageContent: any[] = body.pageContent ?? [];
-      const itemDetails = pageContent.map((entry: any) => {
-        const item = entry.item ?? entry; // fallback: already flat
+
+      // Extract item codes and fetch images from item-attributes in parallel
+      const flatItems = pageContent.map((entry: any) => entry.item ?? entry);
+      const itemCodes = flatItems.map((item: any) => item.itemId?.itemCode ?? item.itemCode).filter(Boolean);
+      const imageMap = itemCodes.length > 0 ? await fetchItemImages(itemCodes) : {};
+
+      const itemDetails = flatItems.map((item: any) => {
+        const code = item.itemId?.itemCode ?? item.itemCode;
         return {
-          itemCode:           item.itemId?.itemCode ?? item.itemCode,
+          itemCode:           code,
           shortDescription:   item.shortDescription,
           departmentId:       item.departmentId,
           packageIdentifiers: (item.packageIdentifiers ?? []).map((p: any) => ({
             value:                 p.value,
             packageIdentifierType: p.type ?? p.packageIdentifierType,
           })),
-          imageUrls: item.imageUrls ?? [],
+          imageUrls: imageMap[code] ? [imageMap[code]] : (item.imageUrls ?? []),
         };
       });
       return {

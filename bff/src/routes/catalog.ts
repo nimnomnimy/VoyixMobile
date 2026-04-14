@@ -81,7 +81,16 @@ export default async function catalogRoutes(app: FastifyInstance) {
         });
       }
 
-      const flatItems = pageContent.map((entry: any) => entry.item ?? entry);
+      // Filter out clothing/size variant items (e.g. w001-S-BLK, k001-2-PNK).
+      // BSP catalog v2 PUT cannot reliably deactivate items, so we exclude
+      // variants by code pattern: <base>-<size>-<colour> (two hyphens minimum).
+      const VARIANT_RE = /^[a-z]\d{3}-.+-.+$/i;
+      const flatItems = pageContent
+        .map((entry: any) => entry.item ?? entry)
+        .filter((item: any) => {
+          const code: string = item.itemId?.itemCode ?? item.itemCode ?? '';
+          return !VARIANT_RE.test(code);
+        });
       const itemCodes = flatItems.map((item: any) => item.itemId?.itemCode ?? item.itemCode).filter(Boolean);
       const imageMap = itemCodes.length > 0 ? fetchItemImages(itemCodes) : {};
 

@@ -17,7 +17,11 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { bff, BffError } from '../lib/bffClient';
 import { Colors, Typography, Spacing, Radius } from '../theme';
 
-const PAYMENT_METHODS = ['Cash', 'Card', 'Mobile Payment'];
+const PAYMENT_METHODS = [
+  { id: 'Cash',           emoji: '💵', label: 'Cash' },
+  { id: 'Card',           emoji: '💳', label: 'Card' },
+  { id: 'Mobile Payment', emoji: '📱', label: 'Mobile' },
+];
 
 // Card surcharge rate (applies to Card and Mobile Payment when surcharges are enabled)
 const SURCHARGE_RATE = 0.015; // 1.5%
@@ -31,7 +35,7 @@ const BSP_PAYMENT_TYPE: Record<string, 'Cash' | 'CreditDebit' | 'Other'> = {
 
 export default function CheckoutScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const [selectedPayment, setSelectedPayment] = useState<string>(PAYMENT_METHODS[0]);
+  const [selectedPayment, setSelectedPayment] = useState<string>(PAYMENT_METHODS[0].id);
   const [processing, setProcessing] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
   const [lineDiscounts, setLineDiscounts] = useState<{ itemCode: string; discountAmount: number; promotionName: string }[]>([]);
@@ -240,19 +244,17 @@ export default function CheckoutScreen({ navigation }: any) {
         <View style={styles.paymentRow}>
           {PAYMENT_METHODS.map((method) => (
             <TouchableOpacity
-              key={method}
+              key={method.id}
               style={[
                 styles.paymentOption,
-                selectedPayment === method && styles.paymentOptionSelected,
+                selectedPayment === method.id && styles.paymentOptionSelected,
               ]}
-              onPress={() => setSelectedPayment(method)}
+              onPress={() => setSelectedPayment(method.id)}
             >
-              <View style={styles.radioButton}>
-                {selectedPayment === method && (
-                  <View style={styles.radioButtonInner} />
-                )}
-              </View>
-              <Text style={styles.paymentText}>{method}</Text>
+              <Text style={styles.paymentEmoji}>{method.emoji}</Text>
+              <Text style={[styles.paymentText, selectedPayment === method.id && styles.paymentTextSelected]}>
+                {method.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -384,41 +386,31 @@ const styles = StyleSheet.create({
   },
   paymentOption: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
     borderWidth: 2,
     borderColor: Colors.border,
     borderRadius: Radius.md,
+    gap: 2,
   },
   paymentOptionSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.background,
   },
-  radioButton: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    marginRight: Spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  radioButtonInner: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: Colors.primary,
+  paymentEmoji: {
+    fontSize: 22,
   },
   paymentText: {
     ...Typography.body,
-    color: Colors.text,
+    color: Colors.textLight,
     fontWeight: '600',
-    fontSize: 13,
-    flexShrink: 1,
+    fontSize: 12,
+  },
+  paymentTextSelected: {
+    color: Colors.primary,
   },
   footerButtons: {
     flexDirection: 'row',

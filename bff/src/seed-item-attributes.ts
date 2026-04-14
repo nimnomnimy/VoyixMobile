@@ -10,52 +10,55 @@
 import 'dotenv/config';
 import { ncrSiteRequest } from './lib/ncrClient.js';
 
+// Base CDN for all Kmart product images
+const CDN = 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products';
+
 const ITEM_IMAGES: { id: string; imageUrl: string }[] = [
-  // Demo short codes — reuse images from their full equivalents
-  { id: '1',    imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058607_1.jpg' }, // Earbuds
-  { id: '2',    imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058596_1.jpg' }, // Crew Tee
-  { id: '3',    imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058635_1.jpg' }, // Mug Set
-  { id: '4',    imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069464_1.jpg' }, // Bluey Egg
-  { id: '5',    imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058622_1.jpg' }, // Kids PJ
-  { id: '6',    imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058631_1.jpg' }, // Frypan
-  // Womens
-  { id: 'w001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069423_1.jpg' },
-  { id: 'w002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069424_1.jpg' },
-  { id: 'w003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069425_1.jpg' },
-  { id: 'w004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069426_1.jpg' },
-  { id: 'w005', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069427_1.jpg' },
-  { id: 'w006', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069428_1.jpg' },
-  // Mens
-  { id: 'm001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058596_1.jpg' },
-  { id: 'm002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058597_1.jpg' },
-  { id: 'm003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058598_1.jpg' },
-  { id: 'm004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058599_1.jpg' },
-  // Kids & Baby
-  { id: 'k001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058620_1.jpg' },
-  { id: 'k002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058622_1.jpg' },
-  { id: 'k003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058623_1.jpg' },
-  { id: 'k004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058624_1.jpg' },
-  // Home & Living
-  { id: 'h001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058626_1.jpg' },
-  { id: 'h002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058627_1.jpg' },
-  { id: 'h003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058628_1.jpg' },
-  { id: 'h004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058635_1.jpg' },
-  { id: 'h005', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058631_1.jpg' },
-  // Tech & Gaming
-  { id: 't001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058607_1.jpg' },
-  { id: 't002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058608_1.jpg' },
-  { id: 't003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058609_1.jpg' },
-  { id: 't004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42058610_1.jpg' },
-  // Toys
-  { id: 'y001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069460_1.jpg' },
-  { id: 'y002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069461_1.jpg' },
-  { id: 'y003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069462_1.jpg' },
-  { id: 'y004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069463_1.jpg' },
-  // Easter
-  { id: 'e001', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069464_1.jpg' },
-  { id: 'e002', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069465_1.jpg' },
-  { id: 'e003', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069466_1.jpg' },
-  { id: 'e004', imageUrl: 'https://media.kmart.com.au/wcsstore/GlobalSAS/images/catalog/products/S42069467_1.jpg' },
+  // ── Demo short codes (map to same image as their full-catalog equivalent) ──
+  { id: '1',    imageUrl: `${CDN}/43499670_1.jpg` },  // Anko True Wireless Earbuds
+  { id: '2',    imageUrl: `${CDN}/S140827_1.jpg`  },  // Plain Crew Neck T-shirt
+  { id: '3',    imageUrl: `${CDN}/42838869_1.jpg` },  // 4 Pack Coffee Mugs
+  { id: '4',    imageUrl: `${CDN}/43518081_1.jpg` },  // Bluey Hollow Easter Egg 40g
+  { id: '5',    imageUrl: `${CDN}/S163549_1.jpg`  },  // Kids Pyjama Set
+  { id: '6',    imageUrl: `${CDN}/42282990_1.jpg` },  // 28cm Aluminium Non-Stick Frypan
+  // ── Womens ─────────────────────────────────────────────────────────────────
+  { id: 'w001', imageUrl: `${CDN}/S42069423_1.jpg` }, // Sleeveless Satin Lace Midi Dress (existing)
+  { id: 'w002', imageUrl: `${CDN}/S42069424_1.jpg` }, // Long Sleeve Collared Mini Dress (existing)
+  { id: 'w003', imageUrl: `${CDN}/S42069425_1.jpg` }, // Long Sleeve Waist Tie Maxi Dress (existing)
+  { id: 'w004', imageUrl: `${CDN}/S160090_1.jpg`  },  // Linen Blend Short Sleeve V-Neck T-shirt
+  { id: 'w005', imageUrl: `${CDN}/S169940_1.jpg`  },  // Linen Blend Wide Leg Pants
+  { id: 'w006', imageUrl: `${CDN}/S148575_1.jpg`  },  // Ribbed Tank
+  // ── Mens ───────────────────────────────────────────────────────────────────
+  { id: 'm001', imageUrl: `${CDN}/S140827_1.jpg`  },  // Plain Crew Neck T-shirt
+  { id: 'm002', imageUrl: `${CDN}/S164518_1.jpg`  },  // Slim Stretch Chino Pants
+  { id: 'm003', imageUrl: `${CDN}/S168666_1.jpg`  },  // Active Mens Polar Fleece Full Zip Hoodie
+  { id: 'm004', imageUrl: `${CDN}/S165867_1.jpg`  },  // Denim Shorts
+  // ── Kids & Baby ────────────────────────────────────────────────────────────
+  { id: 'k001', imageUrl: `${CDN}/S167503_1.jpg`  },  // Long Sleeve Jersey Pyjama Set
+  { id: 'k002', imageUrl: `${CDN}/S163549_1.jpg`  },  // Kids Pyjama Set (stripe)
+  { id: 'k003', imageUrl: `${CDN}/S154468_1.jpg`  },  // 5 Pack Cotton Bodysuits
+  { id: 'k004', imageUrl: `${CDN}/S159894_1.jpg`  },  // Everlast Kids Zip Through Polar Fleece Jacket
+  // ── Home & Living ──────────────────────────────────────────────────────────
+  { id: 'h001', imageUrl: `${CDN}/43354221_1.jpg` },  // 250 Thread Count Cotton Rich Sheet Set Queen
+  { id: 'h002', imageUrl: `${CDN}/42126744_1.jpg` },  // 2 Pack Cotton Rich Cover Pillows
+  { id: 'h003', imageUrl: `${CDN}/43555246_1.jpg` },  // Australian Cotton Bath Towel
+  { id: 'h004', imageUrl: `${CDN}/42838869_1.jpg` },  // 4 Pack Coffee Mugs
+  { id: 'h005', imageUrl: `${CDN}/42282990_1.jpg` },  // 28cm Non-Stick Frypan
+  // ── Tech & Gaming ──────────────────────────────────────────────────────────
+  { id: 't001', imageUrl: `${CDN}/43499670_1.jpg` },  // True Wireless ANC Earbuds
+  { id: 't002', imageUrl: `${CDN}/43351329_1.jpg` },  // Portable Bluetooth Speaker
+  { id: 't003', imageUrl: `${CDN}/43157266_1.jpg` },  // USB-A to USB-C Universal Cable 2m
+  { id: 't004', imageUrl: `${CDN}/43105021_1.jpg` },  // 20W Wall Charger USB & USB-C
+  // ── Toys ───────────────────────────────────────────────────────────────────
+  { id: 'y001', imageUrl: `${CDN}/43518135_1.jpg` },  // Bluey Easter Hunt Pack 125g
+  { id: 'y002', imageUrl: `${CDN}/43055081_1.jpg` },  // Disney Winnie the Pooh Storybook Collection
+  { id: 'y003', imageUrl: `${CDN}/43144655_1.jpg` },  // 208 Piece Artist Case
+  { id: 'y004', imageUrl: `${CDN}/42900719_1.jpg` },  // Zuru X-Shot Omega Foam Dart Blaster
+  // ── Easter ─────────────────────────────────────────────────────────────────
+  { id: 'e001', imageUrl: `${CDN}/43518685_1.jpg` },  // Golden Gaytime Egg 150g
+  { id: 'e002', imageUrl: `${CDN}/43518111_1.jpg` },  // Bluey Milk Chocolate Eggs 100g
+  { id: 'e003', imageUrl: `${CDN}/43662883_1.jpg` },  // Nestle Milkybar Egg 72g
+  { id: 'e004', imageUrl: `${CDN}/43518081_1.jpg` },  // Bluey Milk Chocolate Hollow Easter Egg 40g
 ];
 
 function log(icon: string, msg: string) {

@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   loyaltyChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 6,
     paddingVertical: 5,
     paddingHorizontal: 10,
     gap: 5,

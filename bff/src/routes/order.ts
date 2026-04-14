@@ -15,6 +15,66 @@ import { config } from '../config.js';
 const ORDER_BASE = '/order/3/orders/1';
 const TDM_BASE   = '/transaction-document/transaction-documents';
 
+/**
+ * Fetch return t-logs from TDM for a given order ID and merge returned
+ * quantities back onto the order lines as fulfillmentResult = 'Returned'.
+ *
+ * BSP Order v3 has no native "Returned" fulfillmentResult, so we store
+ * returns in TDM (transactionType = RETURN, referenceId = orderId) and
+ * derive the return state from there.
+ */
+async function mergeReturns(order: any): Promise<any> {
+  if (!order?.id) return order;
+
+  try {
+    // Search TDM for RETURN t-logs that reference this order
+    const { status, data } = await ncrRequest<any>(`${TDM_BASE}/find`, {
+      method: 'POST',
+      body: {
+        fromTransactionDateTimeUtc: { dateTime: '2020-01-01T00:00:00.000Z' },
+        toTransactionDateTimeUtc:   { dateTime: new Date().toISOString() },
+      },
+    });
+
+    if (status !== 200 || !data?.pageContent) return order;
+
+    // Collect returned productIds from all RETURN t-logs whose ID starts with this orderId
+    // (our naming convention: `${orderId}-ret-${timestamp}`)
+    const returnedQtys: Record<string, number> = {}; // productId → total returned qty
+
+    for (const tlog of data.pageContent) {
+      if (!tlog.id?.startsWith(`${order.id}-ret-`)) continue;
+      const items = tlog.tlog?.items ?? tlog.tlogData?.[0]?.tlog?.items ?? [];
+      for (const item of items) {
+        if (!item.isReturn) continue;
+        const pid = item.productId ?? '';
+        const qty = item.quantity?.quantity ?? 1;
+        returnedQtys[pid] = (returnedQtys[pid] ?? 0) + qty;
+      }
+    }
+
+    if (Object.keys(returnedQtys).length === 0) return order;
+
+    // Merge onto order lines
+    const updatedLines = (order.orderLines ?? []).map((line: any) => {
+      const pid = line.productId?.value ?? '';
+      const returnedQty = returnedQtys[pid] ?? 0;
+      if (returnedQty <= 0) return line;
+      const lineQty = line.quantity?.value ?? 1;
+      return {
+        ...line,
+        fulfillmentResult: returnedQty >= lineQty ? 'Returned' : 'PartialReturn',
+        returnedQuantity: returnedQty,
+      };
+    });
+
+    return { ...order, orderLines: updatedLines };
+  } catch {
+    // TDM unavailable — return order as-is
+    return order;
+  }
+}
+
 interface CheckoutBody {
   orderId: string;
   paymentType: 'Cash' | 'CreditDebit' | 'Other';
@@ -164,13 +224,13 @@ export default async function orderRoutes(app: FastifyInstance) {
     }
   );
 
-  /** Get order by ID. */
+  /** Get order by ID — merges TDM return data onto lines. */
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
     const { id } = req.params;
     const { status, data } = await ncrSiteRequest(`${ORDER_BASE}/${id}`);
     if (status === 404) return reply.status(404).send({ error: 'Order not found' });
     assertOk(status, 'get order');
-    return data;
+    return mergeReturns(data);
   });
 
   /** Refund / return selected lines on a completed order. */
@@ -250,7 +310,7 @@ export default async function orderRoutes(app: FastifyInstance) {
     }
   );
 
-  /** List recent orders for the site. */
+  /** List recent orders for the site — merges TDM return data onto each order's lines. */
   app.get('/recent', async () => {
     const body = {
       enterpriseUnitId: config.bsp.siteId,
@@ -262,6 +322,10 @@ export default async function orderRoutes(app: FastifyInstance) {
       body,
     });
     assertOk(status, 'list orders');
-    return data;
+
+    // Merge TDM return data onto each order's lines in parallel
+    const orders: any[] = data?.pageContent ?? [];
+    const merged = await Promise.all(orders.map(mergeReturns));
+    return { ...data, pageContent: merged };
   });
 }

@@ -38,6 +38,7 @@ interface BspOrderLine {
   quantity?: { value?: number };
   unitPrice?: number;
   fulfillmentResult?: string;
+  returnedQuantity?: number;
 }
 
 interface BspOrder {
@@ -58,7 +59,11 @@ function mapBspOrder(bsp: BspOrder): Order {
     price: l.unitPrice ?? 0,
     quantity: l.quantity?.value ?? 1,
     bspLineId: l.lineId,
-    refundedQty: l.fulfillmentResult === 'Returned' ? (l.quantity?.value ?? 0) : 0,
+    refundedQty: l.fulfillmentResult === 'Returned'
+      ? (l.quantity?.value ?? 0)
+      : l.fulfillmentResult === 'PartialReturn'
+        ? (l.returnedQuantity ?? 0)
+        : 0,
   }));
   const total = bsp.payments?.[0]?.amount
     ?? items.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -131,10 +136,7 @@ export default function OrdersScreen({ navigation }: any) {
     if (found) {
       navigation.navigate('OrderDetail', { orderId: found.id });
     } else {
-      Alert.alert('Not found', `No order with code "${data}"`, [
-        { text: 'Scan again', onPress: () => { setScanned(false); setScannerOpen(true); } },
-        { text: 'OK' },
-      ]);
+      Alert.alert('Not found', `No order with code "${data}"`);
     }
   };
 

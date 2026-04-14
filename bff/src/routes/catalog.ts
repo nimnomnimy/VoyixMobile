@@ -11,26 +11,39 @@ import { ncrRequest, ncrSiteRequest } from '../lib/ncrClient.js';
 import { assertOk } from '../lib/errors.js';
 import { config } from '../config.js';
 
+/** Base URL where product images are hosted (BFF static files on Render). */
+const IMAGE_BASE = process.env.BFF_PUBLIC_URL ?? 'https://voyixmobile.onrender.com';
+
 /**
- * Fetch imageUrls from item-attributes for a list of item codes.
- * Returns a map of itemCode → first imageUrl (or undefined).
- * Failures are silently ignored — items without attributes just get no image.
+ * Static map of item code → hosted image URL.
+ * BSP item-attributes imageUrls field is not writable via PUT,
+ * so we inject images directly in the BFF response.
  */
-async function fetchItemImages(itemCodes: string[]): Promise<Record<string, string>> {
-  const results = await Promise.allSettled(
-    itemCodes.map((code) =>
-      ncrSiteRequest<any>(
-        `/catalog/v2/item-attributes/${encodeURIComponent(code)}?enterpriseUnitId=${encodeURIComponent(config.bsp.siteId)}`
-      )
-    )
-  );
+const ITEM_IMAGE_MAP: Record<string, string> = {
+  '1':    `${IMAGE_BASE}/images/1.jpg`,
+  '2':    `${IMAGE_BASE}/images/2.jpg`,
+  '3':    `${IMAGE_BASE}/images/3.jpg`,
+  '4':    `${IMAGE_BASE}/images/4.jpg`,
+  '5':    `${IMAGE_BASE}/images/5.jpg`,
+  '6':    `${IMAGE_BASE}/images/6.jpg`,
+  'e001': `${IMAGE_BASE}/images/e001.jpg`,
+  'e002': `${IMAGE_BASE}/images/e002.jpg`,
+  'e003': `${IMAGE_BASE}/images/e003.jpg`,
+  'e004': `${IMAGE_BASE}/images/e004.jpg`,
+  'h001': `${IMAGE_BASE}/images/h001.jpg`,
+  'h004': `${IMAGE_BASE}/images/h004.jpg`,
+  'h005': `${IMAGE_BASE}/images/h005.jpg`,
+  'k002': `${IMAGE_BASE}/images/k002.jpg`,
+  'm001': `${IMAGE_BASE}/images/m001.jpg`,
+  't001': `${IMAGE_BASE}/images/t001.jpg`,
+  'y001': `${IMAGE_BASE}/images/y001.jpg`,
+};
+
+function fetchItemImages(itemCodes: string[]): Record<string, string> {
   const imageMap: Record<string, string> = {};
-  results.forEach((result, idx) => {
-    if (result.status === 'fulfilled' && result.value.status === 200) {
-      const urls: string[] = result.value.data?.imageUrls ?? [];
-      if (urls.length > 0) imageMap[itemCodes[idx]] = urls[0];
-    }
-  });
+  for (const code of itemCodes) {
+    if (ITEM_IMAGE_MAP[code]) imageMap[code] = ITEM_IMAGE_MAP[code];
+  }
   return imageMap;
 }
 
@@ -63,7 +76,7 @@ export default async function catalogRoutes(app: FastifyInstance) {
       // Extract item codes and fetch images from item-attributes in parallel
       const flatItems = pageContent.map((entry: any) => entry.item ?? entry);
       const itemCodes = flatItems.map((item: any) => item.itemId?.itemCode ?? item.itemCode).filter(Boolean);
-      const imageMap = itemCodes.length > 0 ? await fetchItemImages(itemCodes) : {};
+      const imageMap = itemCodes.length > 0 ? fetchItemImages(itemCodes) : {};
 
       const itemDetails = flatItems.map((item: any) => {
         const code = item.itemId?.itemCode ?? item.itemCode;

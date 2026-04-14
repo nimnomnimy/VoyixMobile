@@ -6,12 +6,15 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/build-ios.yml'
-  workflow_dispatch:  # allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
     name: EAS Build — iOS (preview)
     runs-on: macos-latest
+
+    permissions:
+      contents: write   # needed to create GitHub Releases
 
     steps:
       - name: Checkout
@@ -38,9 +41,134 @@ jobs:
         working-directory: mobile
         run: eas build --platform ios --profile preview --local --non-interactive --output ../build/voyix-mobile.ipa
 
-      - name: Upload IPA artifact
+      - name: Get app version
+        id: version
+        run: echo "version=$(node -p "require('./mobile/app.json').expo.version")" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release and upload IPA
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-ios-${{ github.run_number }}
+          name: iOS v${{ steps.version.outputs.version }} (build ${{ github.run_number }})
+          body: |
+            iOS IPA build — scan the QR code below to install on your iPhone.
+
+            > **Requires your device UDID to be registered in the provisioning profile.**
+          files: build/voyix-mobile.ipa
+          draft: false
+          prerelease: true
+
+      - name: Generate install manifest + QR page
+        run: |
+          # Generate manifest.plist
+          cat > manifest.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>items</key>
+            <array>
+              <dict>
+                <key>assets</key>
+                <array>
+                  <dict>
+                    <key>kind</key>
+                    <string>software-package</string>
+                    <key>url</key>
+                    <string>${IPA_URL}</string>
+                  </dict>
+                </array>
+                <key>metadata</key>
+                <dict>
+                  <key>bundle-identifier</key>
+                  <string>${BUNDLE_ID}</string>
+                  <key>bundle-version</key>
+                  <string>${APP_VERSION}</string>
+                  <key>kind</key>
+                  <string>software</string>
+                  <key>title</key>
+                  <string>${APP_NAME}</string>
+                </dict>
+              </dict>
+            </array>
+          </dict>
+          </plist>
+          EOF
+
+          # Upload manifest.plist as a release asset
+          gh release upload v${{ steps.version.outputs.version }}-ios-${{ github.run_number }} manifest.plist --clobber
+
+          # Build manifest URL
+          MANIFEST_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}-ios-${{ github.run_number }}/manifest.plist"
+          INSTALL_URL="itms-services://?action=download-manifest&url=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${MANIFEST_URL}', safe=''))")"
+
+          # Generate a simple HTML install page with QR code
+          npm install -g qrcode-cli 2>/dev/null || true
+          node - << 'JSEOF'
+          const https = require('https');
+          const fs = require('fs');
+
+          const manifestUrl = process.env.MANIFEST_URL;
+          const installUrl = process.env.INSTALL_URL;
+          const version = process.env.APP_VERSION;
+          const runNumber = process.env.RUN_NUMBER;
+
+          // Use goqr.me API to generate QR as PNG data URL (no npm needed)
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(installUrl)}`;
+
+          const html = `<!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>Install VoyixMobile iOS</title>
+            <style>
+              body { font-family: -apple-system, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; text-align: center; }
+              .card { background: #fff; border-radius: 16px; padding: 32px 24px; max-width: 400px; margin: 0 auto; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+              h1 { color: #CC0000; font-size: 22px; margin-bottom: 4px; }
+              p { color: #666; font-size: 14px; margin-bottom: 24px; }
+              img { width: 240px; height: 240px; border: 1px solid #eee; border-radius: 8px; }
+              .install-btn { display: inline-block; margin-top: 24px; background: #CC0000; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 17px; font-weight: 600; }
+              .note { font-size: 12px; color: #aaa; margin-top: 16px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>VoyixMobile</h1>
+              <p>iOS v${version} · Build #${runNumber}</p>
+              <img src="${qrApiUrl}" alt="Scan to install" />
+              <br>
+              <a class="install-btn" href="${installUrl}">Tap to Install</a>
+              <p class="note">Scan QR on your iPhone, or tap "Tap to Install" if already on iPhone.<br>Your UDID must be registered in the provisioning profile.</p>
+            </div>
+          </body>
+          </html>`;
+
+          fs.writeFileSync('install.html', html);
+          console.log('Generated install.html');
+          JSEOF
+        env:
+          IPA_URL: ${{ fromJson(steps.release.outputs.assets)[0].browser_download_url }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          BUNDLE_ID: com.kmart.voyixmobile
+          APP_NAME: VoyixMobile
+          MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}-ios-${{ github.run_number }}/manifest.plist
+          INSTALL_URL: itms-services://?action=download-manifest&url=https%3A%2F%2Fgithub.com%2F${{ github.repository }}%2Freleases%2Fdownload%2Fv${{ steps.version.outputs.version }}-ios-${{ github.run_number }}%2Fmanifest.plist
+          RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload install page as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: voyix-mobile-ios-${{ github.sha }}
-          path: build/voyix-mobile.ipa
+          name: ios-install-page-${{ github.run_number }}
+          path: install.html
           retention-days: 30
+
+      - name: Print install URL
+        run: |
+          echo ""
+          echo "✅ iOS build complete!"
+          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}-ios-${{ github.run_number }}"
+          echo "📲 Install page artifact: download 'ios-install-page-${{ github.run_number }}' from Actions artifacts"
+          echo ""

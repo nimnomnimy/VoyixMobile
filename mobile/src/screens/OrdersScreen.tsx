@@ -44,6 +44,7 @@ interface BspOrderLine {
 interface BspOrder {
   id?: string;
   status?: string;
+  orderStatus?: string;  // BSP v3 find response sometimes uses orderStatus instead of status
   orderLines?: BspOrderLine[];
   payments?: { amount?: number }[];
   openDate?: string;
@@ -72,7 +73,8 @@ function mapBspOrder(bsp: BspOrder): Order {
   // Use TDM-derived refundedTotal from BFF if available, otherwise derive from line quantities
   const refundedTotal = bsp.refundedTotal
     ?? items.reduce((s, i) => s + i.price * i.refundedQty, 0);
-  const isSuspended = bsp.status === 'InProgress';
+  const bspStatus = bsp.status ?? bsp.orderStatus ?? '';
+  const isSuspended = bspStatus === 'InProgress';
   const allRefunded = !isSuspended && items.length > 0 && items.every((i) => i.refundedQty >= i.quantity);
   const anyRefunded = !isSuspended && items.some((i) => i.refundedQty > 0);
   // When all items are returned, refundedTotal must equal total regardless of

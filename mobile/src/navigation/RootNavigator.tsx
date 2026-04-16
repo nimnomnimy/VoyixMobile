@@ -107,16 +107,28 @@ function MainTabs() {
         const orderItems = items.map((i) => ({ ...i, refundedQty: 0 }));
 
         if (bspOrderId) {
-          // BSP-backed suspend — PATCH to InProgress and store loyalty state
-          // in BFF memory so any terminal can restore it on resume.
+          // BSP-backed suspend — flush any unsynced items to BSP first, then
+          // PATCH to InProgress and store loyalty state in BFF memory so any
+          // terminal can restore it on resume.
           const { useLoyaltyStore: ls } = require('../store/useLoyaltyStore');
           const loyaltyState = ls.getState();
-          const loyaltyPayload = {
+
+          // Snapshot items now (before clearCartLocal wipes them)
+          const currentItems = cartStore.items as typeof items;
+          const suspendPayload = {
             flybuys:    loyaltyState.flybuys    ? { cardNumber: loyaltyState.flybuys.cardNumber,    accountId: loyaltyState.flybuys.accountId,    memberName: loyaltyState.flybuys.memberName    } : null,
             teamMember: loyaltyState.teamMember ? { cardNumber: loyaltyState.teamMember.cardNumber, accountId: loyaltyState.teamMember.accountId, memberName: loyaltyState.teamMember.memberName } : null,
             onepass:    loyaltyState.onepass    ? { cardNumber: loyaltyState.onepass.cardNumber,    accountId: loyaltyState.onepass.accountId,    memberName: loyaltyState.onepass.memberName    } : null,
+            // Send all cart items so BFF can ensure they're all in BSP before suspending
+            items: currentItems.map((i) => ({
+              itemCode:    i.id,
+              description: i.name,
+              quantity:    i.quantity,
+              unitPrice:   i.price,
+              bspLineId:   i.bspLineId,
+            })),
           };
-          bff.post(`/api/cart/${bspOrderId}/suspend`, loyaltyPayload)
+          bff.post(`/api/cart/${bspOrderId}/suspend`, suspendPayload)
             .catch(() => {}); // fire-and-forget; local suspend still happens
           suspendOrder({
             id: bspOrderId,

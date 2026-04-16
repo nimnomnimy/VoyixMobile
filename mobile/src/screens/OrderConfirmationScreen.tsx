@@ -30,9 +30,10 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
   const [emailSent, setEmailSent] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
-  // Save receipt to BFF on mount so the QR code links to a hosted page
+  // Save receipt to BFF once we have order data so the QR code links to a hosted page.
+  // Depends on `order` in case the store hasn't propagated by the time the component mounts.
   useEffect(() => {
-    if (!order) return;
+    if (!order || receiptUrl) return;
     bff.post<{ url: string }>('/api/receipt', {
       orderId: order.id,
       timestamp: order.timestamp,
@@ -47,7 +48,7 @@ export default function OrderConfirmationScreen({ route, navigation }: any) {
       paymentMethod: order.paymentMethod,
       storeName,
     }).then((res) => setReceiptUrl(res.url)).catch(() => {/* fall back to orderId QR */});
-  }, []);
+  }, [order]);
 
   const qrValue = receiptUrl ?? order?.bspOrderId ?? orderId.toString();
 

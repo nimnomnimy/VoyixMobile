@@ -33,6 +33,18 @@ interface CartLineItem {
   unitPrice: number;
 }
 
+interface SuspendItem {
+  itemCode: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  bspLineId?: string;
+}
+
+interface SuspendBody extends SuspendedLoyalty {
+  items?: SuspendItem[];
+}
+
 export default async function cartRoutes(app: FastifyInstance) {
   /** Create a new cart (BSP order in Open status). */
   app.post<{ Body: { currency?: string } }>('/create', async (req) => {
@@ -141,10 +153,15 @@ export default async function cartRoutes(app: FastifyInstance) {
   });
 
   /**
-   * Suspend a cart — PATCH BSP order to InProgress and store loyalty state
-   * in memory so it can be restored on any terminal that resumes the order.
+   * Suspend a cart — optionally sync any unsynced items first, then PATCH
+   * BSP order to InProgress and store loyalty state in memory so it can be
+   * restored on any terminal that resumes the order.
+   *
+   * Accepts an `items` array so the mobile client can guarantee all local
+   * cart lines are persisted to BSP before suspension (fixes the issue where
+   * items added after the order was created are missing on other terminals).
    */
-  app.post<{ Params: { id: string }; Body: SuspendedLoyalty }>(
+  app.post<{ Params: { id: string }; Body: SuspendBody }>(
     '/:id/suspend',
     {
       schema: {
@@ -154,12 +171,66 @@ export default async function cartRoutes(app: FastifyInstance) {
             flybuys:    { type: ['object', 'null'] },
             teamMember: { type: ['object', 'null'] },
             onepass:    { type: ['object', 'null'] },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['itemCode', 'description', 'quantity', 'unitPrice'],
+                properties: {
+                  itemCode:    { type: 'string' },
+                  description: { type: 'string' },
+                  quantity:    { type: 'number' },
+                  unitPrice:   { type: 'number' },
+                  bspLineId:   { type: 'string' },
+                },
+              },
+            },
           },
         },
       },
     },
     async (req) => {
       const { id } = req.params;
+      const { items, flybuys, teamMember, onepass } = req.body ?? {};
+
+      // If the client sent items, fetch the current BSP order to know which
+      // lines already exist, then add any that are missing.
+      if (items && items.length > 0) {
+        try {
+          const { status: getStatus, data: order } = await ncrSiteRequest<any>(`${ORDER_BASE}/${id}`);
+          if (getStatus === 200 && order) {
+            // Build set of existing BSP line IDs to avoid duplicating
+            const existingLineIds = new Set(
+              (order.orderLines ?? [])
+                .filter((l: any) => l.fulfillmentResult !== 'Voided')
+                .map((l: any) => l.lineId)
+                .filter(Boolean)
+            );
+
+            // Add lines that don't have a known BSP lineId in our records
+            for (const item of items) {
+              if (item.bspLineId && existingLineIds.has(item.bspLineId)) continue;
+              // This item is not confirmed in BSP — add it now
+              await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
+                method: 'PATCH',
+                body: {
+                  orderLines: [{
+                    productId: { type: 'ITEM_CODE', value: item.itemCode },
+                    description: item.description,
+                    quantity: { value: item.quantity, unitOfMeasure: 'EA' },
+                    unitPrice: item.unitPrice,
+                    extendedAmount: parseFloat((item.quantity * item.unitPrice).toFixed(2)),
+                  }],
+                },
+              });
+            }
+          }
+        } catch {
+          // Item sync failure is non-fatal — still proceed with suspension
+          app.log.warn({ orderId: id }, 'Failed to sync items during suspension');
+        }
+      }
+
       const { status } = await ncrSiteRequest(`${ORDER_BASE}/${id}`, {
         method: 'PATCH',
         body: { status: 'InProgress' },
@@ -167,9 +238,9 @@ export default async function cartRoutes(app: FastifyInstance) {
       assertOk(status, 'suspend cart');
       // Store loyalty state keyed by orderId
       suspendedLoyalty.set(id, {
-        flybuys:    req.body.flybuys    ?? null,
-        teamMember: req.body.teamMember ?? null,
-        onepass:    req.body.onepass    ?? null,
+        flybuys:    flybuys    ?? null,
+        teamMember: teamMember ?? null,
+        onepass:    onepass    ?? null,
       });
       return { ok: true, orderId: id };
     }

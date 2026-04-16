@@ -340,6 +340,8 @@ export default async function orderRoutes(app: FastifyInstance) {
 
     // Merge TDM return data onto each order's lines in parallel
     const orders: any[] = data?.pageContent ?? [];
+    // Log status values to diagnose suspended-order detection on other terminals
+    app.log.info({ orderStatuses: orders.map((o: any) => ({ id: o.id, status: o.status, orderStatus: o.orderStatus })) }, 'recent orders status');
     const merged = await Promise.all(orders.map(mergeReturns));
     return { ...data, pageContent: merged };
   });

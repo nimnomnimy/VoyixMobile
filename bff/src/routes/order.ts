@@ -330,6 +330,7 @@ export default async function orderRoutes(app: FastifyInstance) {
     const body = {
       enterpriseUnitId: config.bsp.siteId,
       returnFullOrders: true,
+      statuses: ['OrderPlaced', 'InProgress'],
       sort: { column: 'CreatedDate', direction: 'Desc' },
     };
     const { status, data } = await ncrSiteRequest<{ pageContent?: any[]; [k: string]: any }>(

@@ -79,12 +79,17 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     const updated = existing.map((local) => {
       const bsp = bspById.get(local.bspOrderId ?? local.id);
       if (!bsp) return local;
-      // Prefer BSP data for refund state; never downgrade a suspended local order
+      // If BSP says InProgress the order is still suspended regardless of local state.
+      // Never downgrade a locally-suspended order to completed either.
+      const resolvedStatus =
+        bsp.status === 'suspended' ? 'suspended' :
+        local.status === 'suspended' ? 'suspended' :
+        bsp.status;
       return {
         ...local,
         total: bsp.total > 0 ? bsp.total : local.total,
         refundedTotal: Math.max(local.refundedTotal, bsp.refundedTotal),
-        status: local.status === 'suspended' ? 'suspended' : bsp.status,
+        status: resolvedStatus,
         items: bsp.items.length > 0 ? bsp.items : local.items,
       };
     });

@@ -263,13 +263,18 @@ export default async function orderRoutes(app: FastifyInstance) {
         },
       },
     },
-    async (req) => {
+    async (req, reply) => {
       const { id } = req.params;
       const { lines, staffId = 'unknown', paymentType = 'CreditDebit', refundAmount } = req.body;
 
       // 1. Fetch original order for line details (needed for t-log)
       const { status: getStatus, data: order } = await ncrSiteRequest<any>(`${ORDER_BASE}/${id}`);
       assertOk(getStatus, 'fetch order for refund');
+
+      // Guard: block refunds on unpaid (suspended) orders
+      if (order?.status === 'InProgress' || order?.status === 'Created') {
+        return reply.status(400).send({ error: 'Cannot refund an unpaid/suspended order' });
+      }
 
       // BSP Order v3 FulfillmentResultType has no "Returned" value — skip the PATCH.
       // The return is recorded via the TDM t-log below.
